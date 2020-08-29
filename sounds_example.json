@@ -1,0 +1,21 @@
+{
+    "soundBites": {
+        "yourChatCommand": "your file path!",
+        "30": "./sounds/wololo.mp3",
+        "!horn": "./sounds/horn.mp3"
+    },
+
+    "arrAngryCatSounds": [
+        "./sounds/catScream.mp3",
+        "./sounds/catHiss.mp3",
+        "./sounds/angryCat.mp3",
+        "./sounds/angryLong.mp3",
+        "./sounds/lowAngryCat.mp3"
+    ],
+
+    "arrDisco": [
+        "./sounds/ymca.mp3",
+        "./sounds/boogieWonderland.mp3",
+        "./sounds/starWarsDisco.mp3"
+    ]
+}

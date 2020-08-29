@@ -1,0 +1,10 @@
+{
+    "botCreds": {
+        "username": "Your Bot Username",
+        "clientID": "Twitch app client ID https://dev.twitch.tv/console/apps/create",
+        "secret": "Twitch app client secret https://dev.twitch.tv/console/apps/create"
+    },
+    "discord": "Your discord invite link (make sure it won't expire)",
+    "channel": "Channel name that the bot will be connecting to.",
+    "baseURL": "https://<hue bridge ip addres>/api/<authorized user id> see Hue Documentation: https://developers.meethue.com/develop/get-started-2/"
+}
