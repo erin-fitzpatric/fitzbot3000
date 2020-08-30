@@ -1,5 +1,8 @@
 import axios from 'axios';
-import { creds } from './creds';
+import  fs from 'fs';
+
+// Load in creds JSON file
+const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
 
 export module Lights {
     // // Get current light
@@ -15,15 +18,6 @@ export module Lights {
     //         console.log('fail', error)
     //     })
     // }
-
-    // Scenes - scenes can be set with the HUE app and retrieved using the Hue Api. See documentation - https://developers.meethue.com/develop/hue-api/4-scenes/
-    export const scenes = {
-        red: 'SwMYG5qgtncHn4I',
-        orange: 'UpTrmN93ZcFMHz5',
-        blue: 'Lx6Fw2a-RTg116-',
-        purple: 'iVW8t0kRn6iJX3V'
-    }
-
 
     // Light Functions
     export function lightsOn() {

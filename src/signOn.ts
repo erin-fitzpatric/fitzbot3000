@@ -6,15 +6,14 @@ import  fs from 'fs';
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
 
 export module SignOn {
-    export async function testLogon() {}
-
-    export async function getToken(getAccessTokenURL: string, client_id: string,client_secret: string) {
-        let response = await axios.post(getAccessTokenURL)
-        if (response.status !== 200) {
-            throw new Error('Error retrieving Access Token')
-        }
-        return response.data.access_token
-    }
+    // NOT IN USE
+    // export async function getToken(getAccessTokenURL: string, client_id: string,client_secret: string) {
+    //     let response = await axios.post(getAccessTokenURL)
+    //     if (response.status !== 200) {
+    //         throw new Error('Error retrieving Access Token')
+    //     }
+    //     return response.data.access_token
+    // }
 
     export async function getTokenFromAccessCode(code: string) {
         let response;
@@ -32,17 +31,16 @@ export module SignOn {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded',
                     },
-                },
-            
+                }
             )
         } catch (err) {
             console.error(err)
-            throw new Error('Error something happened.')
+            throw new Error('Error something happened.');
         }
         if (response.status !== 200) {
-            throw new Error('Error retrieving Token From Access Code')
+            throw new Error('Error retrieving Token From Access Code');
         }
-        return response.data
+        return response.data;
     }
 
     export function getAuthData() {

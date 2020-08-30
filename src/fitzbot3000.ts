@@ -1,55 +1,35 @@
-import ChatClient, { ChatSubGiftInfo } from 'twitch-chat-client';
-import  fs from 'fs';
-import ApiClient, {User, UserIdResolvable} from 'twitch';
+import express from 'express';
 import https from 'https';
 import http from 'http';
-import express from 'express';
-import { Games } from "./games";
+import  fs from 'fs';
+import ApiClient from 'twitch';
+import { SignOn } from './signOn';
+import ChatClient, { ChatSubGiftInfo } from 'twitch-chat-client';
+import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage }  from 'twitch-pubsub-client';
+import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth'; 
 import { Lights } from "./lights";
 import { Sounds } from "./sounds";
+import { Games } from "./games";
 import { Effects } from './effects';
-import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage }  from 'twitch-pubsub-client';
-import { getTokenInfo, getAppAccessToken, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth'; 
 import { Utils } from './utils';
-import { SignOn } from './signOn';
 
-// Load in creds JSON file
+// Load in JSON files
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
+const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'UTF-8'));
+const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'UTF-8'));
+const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'UTF-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
 let authDataPromiseResolver : (para: any) => void;
-
-let scopes = [
-    "analytics:read:extensions",
-    "analytics:read:games",
-    "bits:read",
-    "channel:edit:commercial",
-    "channel:read:hype_train",
-    "channel:read:subscriptions",
-    "channel:read:redemptions",
-    "clips:edit",
-    "user:edit",
-    "user:edit:broadcast",
-    "user:edit:follows",
-    "user:read:broadcast",
-    "user:read:email",
-    "channel:moderate",
-    "chat:edit",
-    "chat:read",
-    "whispers:read",
-    "whispers:edit",
-];
 
 // start server
 let app = express();
 http.createServer(app).listen(8080, () => {
     // sign in with twitch
     app.get("/auth/twitch", (req, res, next) => {
-       
         let redirect_uri = "http://localhost:8080/auth/signin-twitch";
-
-        res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.join('+')}`);
+        res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
         return next();
     })
     // redirect from twitch
@@ -60,12 +40,9 @@ http.createServer(app).listen(8080, () => {
             console.error("Auth Error", error, errorMsg);
             throw new Error(`Error: ${error}: ${errorMsg}`);
         }
-
         let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
-
         authDataPromiseResolver(authData);
     })
-
     // app.post("/followers/callback", async (req, res, next) => {
 
     // });
@@ -90,7 +67,7 @@ async function main() {
         console.log("Successfully got signin callback.");
     }
 
-    const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes), {
+    const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes.scopes), {
         clientSecret: creds.botCreds.secret,
         refreshToken: tokenData.refresh_token,
         expiry: tokenData.expiryTimestamp === null ? null : new Date(tokenData.expiryTimestamp),
@@ -121,7 +98,7 @@ async function main() {
     await chatClient.connect();
 
     // On Init
-    const botName = creds.botcreds.username;
+    const botName = creds.botCreds.username;
     const sayChannel = `#${creds.channel.toLowerCase()}`;
     chatClient.say(sayChannel, `${botName} is online!`);
     chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
@@ -190,19 +167,19 @@ async function main() {
                 }
                 // Scenes
                 case '!red': {
-                    Lights.setScene(Lights.scenes.red);
+                    Lights.setScene(scenes.red);
                     break;
                 }
                 case '!orange': {
-                    Lights.setScene(Lights.scenes.orange);
+                    Lights.setScene(scenes.orange);
                     break;
                 }
                 case '!blue': {
-                    Lights.setScene(Lights.scenes.blue);
+                    Lights.setScene(scenes.blue);
                     break;
                 }
                 case '!purple': {
-                    Lights.setScene(Lights.scenes.purple);
+                    Lights.setScene(scenes.purple);
                     break;
                 }
                 // Play effects
@@ -224,9 +201,6 @@ async function main() {
                 }
             }
 
-            // Load in sounds JSON file
-            const sounds = JSON.parse(fs.readFileSync('./sounds/sounds.json', 'UTF-8'));
-
             // Play sounds
             const sound = sounds.soundBites[message.toLowerCase()]
             if (sound) {
@@ -238,7 +212,7 @@ async function main() {
     // Bits Event
     await pubSubClient.onBits(userID, (message: PubSubBitsMessage) => {
         console.log("Bits bits bits bits!!!", message.bits);
-        Sounds.playSound('./sounds/20thCenturyFoxFlute.mp3');
+        Sounds.playSound(sounds.channelEvents.bits);
     });
     
     //Channel Points Event
@@ -248,13 +222,13 @@ async function main() {
 
     // Subscription Event
     chatClient.onSub((channel: any, user: any) => {
-        Sounds.playSound('./sounds/20thCenturyFoxFlute.mp3');
-        chatClient.say(channel, `Thanks to @${user} for subscribing to the channel!`);
+        Sounds.playSound(sounds.channelEvents.sub);
+        chatClient.say(channel, `Thanks to @${user} for subscribing!`);
     });
 
     // Resub Event
     chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) => {
-        Sounds.playSound('./sounds/20thCenturyFoxFlute.mp3');
+        Sounds.playSound(sounds.channelEvents.resub);
         chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
     });
 
@@ -282,7 +256,7 @@ async function main() {
                 console.log("no giftedSubs!");
                 return;
             } 
-            Sounds.playSound('./sounds/merryXmasFilthyAnimal.mp3');
+            Sounds.playSound(sounds.channelEvents.subGift);
             chatClient.say(sayChannel, `Thanks to ${sub.subInfo.gifter} for gifting a subscription to ${sub.user}!`);
             await Utils.sleep(8000);
         }
