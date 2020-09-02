@@ -195,6 +195,10 @@ async function main() {
                     Effects.emp();
                     break;
                 }
+                case '!torb': {
+                    Effects.moltenCore();
+                    break;
+                }
                 case '!cat': {
                     Effects.angryCat();
                     break;

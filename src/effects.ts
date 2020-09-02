@@ -3,6 +3,9 @@ import { Lights } from './lights';
 import { Utils } from './utils';
 import  fs from 'fs';
 
+// Load in JSON
+const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'UTF-8'));
+
 export module Effects {
     // Effects
     export async function police() {
@@ -61,6 +64,27 @@ export module Effects {
         setTimeout(() => {
             Lights.lightsOn();
         }, 5000)
+    }
+
+    // TODO
+    export async function moltenCore() {
+        Sounds.playSound('./sounds/torb.mp3');
+        setTimeout(() => {
+            Lights.setScene(scenes.red);
+        }, 350);
+        setTimeout(() => {
+            Lights.setScene(scenes.white);
+        }, 350);
+        setTimeout(() => {
+            Lights.setScene(scenes.red);
+        }, 350);
+        setTimeout(() => {
+            Lights.setScene(scenes.orange);
+        }, 350);
+        // setTimeout(() => {
+        //     Lights.setScene(scenes.orange);
+        //     Lights.lightsOff();
+        // }, 5000)
     }
 
     // Cat Bot
