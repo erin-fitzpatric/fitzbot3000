@@ -144,7 +144,7 @@ async function main() {
                     break;
                 }
                 case '!effects': {
-                    chatClient.say(channel, "'!disco', '!police', '!emp', '!cat'");
+                    chatClient.say(channel, "'!disco', '!police', '!emp', '!torb', '!cat'");
                     break;
                 }
                 // Games
@@ -165,24 +165,6 @@ async function main() {
                     Lights.lightsOn();
                     break;
                 }
-                // Scenes
-                case '!red': {
-                    Lights.setScene(scenes.red);
-                    break;
-                }
-                case '!orange': {
-                    Lights.setScene(scenes.orange);
-                    break;
-                }
-                case '!blue': {
-                    Lights.setScene(scenes.blue);
-                    break;
-                }
-                case '!purple': {
-                    Lights.setScene(scenes.purple);
-                    break;
-                }
-                // Play effects
                 case '!police': {
                     await Effects.police();               
                     break;
@@ -204,8 +186,12 @@ async function main() {
                     break;
                 }
             }
-
-            // Play sounds
+            // Set Scenes 
+            const scene = scenes[message.toLowerCase().substring(1)]
+            if (scene) {
+                Lights.setScene(scene);
+            }
+            // Play Sounds
             const sound = sounds.soundBites[message.toLowerCase()]
             if (sound) {
                 Sounds.playSound(sound);

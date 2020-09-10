@@ -66,25 +66,21 @@ export module Effects {
         }, 5000)
     }
 
-    // TODO
     export async function moltenCore() {
         Sounds.playSound('./sounds/torb.mp3');
-        setTimeout(() => {
-            Lights.setScene(scenes.red);
-        }, 350);
+        Lights.setScene(scenes.red);
         setTimeout(() => {
             Lights.setScene(scenes.white);
-        }, 350);
+        }, 1000);
         setTimeout(() => {
             Lights.setScene(scenes.red);
-        }, 350);
+        }, 2000);
         setTimeout(() => {
-            Lights.setScene(scenes.orange);
-        }, 350);
-        // setTimeout(() => {
-        //     Lights.setScene(scenes.orange);
-        //     Lights.lightsOff();
-        // }, 5000)
+            Lights.setScene(scenes.white);
+        }, 3000);
+        setTimeout(() => {
+            Lights.setScene(scenes.red);
+        }, 4000);
     }
 
     // Cat Bot
