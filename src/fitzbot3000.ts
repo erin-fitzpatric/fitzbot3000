@@ -99,7 +99,7 @@ async function main() {
 
     // On Init
     const botName = creds.botCreds.username;
-    const sayChannel = `#${creds.channel.toLowerCase()}`;
+    const sayChannel = `${creds.channel.toLowerCase()}`;
     chatClient.say(sayChannel, `${botName} is online!`);
     chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
 
@@ -144,7 +144,7 @@ async function main() {
                     break;
                 }
                 case '!effects': {
-                    chatClient.say(channel, "'!disco', '!police', '!emp', '!torb', '!cat'");
+                    chatClient.say(channel, "'!disco', '!police', '!emp', '!torb', '!cat', '!bomb'");
                     break;
                 }
                 // Games
@@ -170,7 +170,7 @@ async function main() {
                     break;
                 }
                 case '!disco': {
-                    await Effects.disco();
+                    await Effects.disco(user);
                     break;
                 }
                 case '!emp': {
@@ -189,15 +189,19 @@ async function main() {
             // Set Scenes 
             const scene = scenes[message.toLowerCase().substring(1)]
             if (scene) {
+                console.log(`${user} set a scene!`);
                 Lights.setScene(scene);
             }
             // Play Sounds
             const sound = sounds.soundBites[message.toLowerCase()]
             if (sound) {
+                console.log(`${user} played a sound!`);
                 Sounds.playSound(sound);
             }
         }
     );
+
+    // TODO - Follower Event
 
     // Bits Event
     await pubSubClient.onBits(userID, (message: PubSubBitsMessage) => {
@@ -252,6 +256,8 @@ async function main() {
         }
         gitedSubQueueComplete = true;
     }
+
+    // TODO - Raids
 }
 
 main();

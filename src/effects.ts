@@ -38,8 +38,9 @@ export module Effects {
 
     const discoColors = [0, (59 / 360) * 65535, (120 / 360) * 65535, (180 / 360) * 65535, 43690, (300 / 360) * 65535, (33 / 360) * 65535];
 
-    export async function disco() {
-        
+    export async function disco(user: string) {
+        console.log(`${user} played disco!`);
+
         let randomDiscoSound = getRandomSound("arrDisco");
         Sounds.playSound(randomDiscoSound);
         console.log("DISCO:" + randomDiscoSound);
