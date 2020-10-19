@@ -24,7 +24,7 @@ export module SignOn {
                     client_id: creds.botCreds.clientID,
                     client_secret: creds.botCreds.secret,
                     grant_type: 'authorization_code',
-                    redirect_uri: 'http://localhost:8080/auth/signin-twitch',
+                    redirect_uri: 'http://localhost:6767/auth/signin-twitch',
                     code: code
                 }),
                 {

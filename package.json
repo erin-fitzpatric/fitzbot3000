@@ -5,6 +5,7 @@
     "main": "./src/fitzbot3000.js",
     "dependencies": {
         "@types/express": "^4.17.7",
+        "@types/websocket": "^1.0.1",
         "axios": "^0.19.2",
         "express": "^4.17.1",
         "http": "0.0.1-security",
@@ -14,7 +15,8 @@
         "twitch": "^4.2.0-pre.5",
         "twitch-chat-client": "^4.2.0-pre.5",
         "twitch-pubsub-client": "^4.2.0-pre.5",
-        "web-audio-api": "^0.2.2"
+        "web-audio-api": "^0.2.2",
+        "websocket": "^1.0.32"
     },
     "devDependencies": {
         "eslint": "^7.2.0",
