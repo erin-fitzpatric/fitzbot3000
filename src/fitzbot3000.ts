@@ -108,6 +108,10 @@ async function main() {
         chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
     }, 900000);
 
+    let lossCount = 0;
+    let winCount = 0;
+    let tieCount = 0;
+
     chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) => {
             if (message.startsWith('!hue')) {
                 const color = message.slice(4).trim()
@@ -183,6 +187,36 @@ async function main() {
                 }
                 case '!cat': {
                     Effects.angryCat();
+                    break;
+                }
+                case '!score': {
+                    chatClient.say(channel, `The current score is ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!win': {
+                    winCount++;
+                    chatClient.say(channel, `@${creds.channel} wins :) :) :)!!! The current score is ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!unwin': {
+                    winCount--;
+                    chatClient.say(channel, `Someone messed up the score counter...win removed! Updated score: ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!loss': {
+                    lossCount++;
+                    chatClient.say(channel, `@${creds.channel} lost :( :( :(...the current score is ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!unloss': {
+                    lossCount--;
+                    chatClient.say(channel, `Someone messed up the score counter...loss removed! Updated score: ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!reset': {
+                    winCount = 0;
+                    lossCount = 0;
+                    chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
                     break;
                 }
             }
