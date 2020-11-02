@@ -102,8 +102,10 @@ export class ActionQueue
 		if (this.currentAction)
 			return;
 
-		let front = this.queue.shift();
+		if (this.queue.length == 0)
+			return;
 
+		let front = this.queue.shift();
 		let frontPromise = this.runAction(front);
 		this.currentAction = frontPromise;
 		this.currentAction.then(() => this.runNext());
