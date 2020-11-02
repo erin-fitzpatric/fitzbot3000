@@ -16,10 +16,19 @@ export class ActionQueue
 	constructor(configFile: string, wsServer: websocket.server)
 	{
 		let config = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
-		fs.watchFile(configFile, (curr: fs.Stats, prev: fs.Stats) => {
-			let newConfig = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
-			console.log("Reloading Config");
-			this.events = newConfig;
+		fs.watchFile(configFile, (curr: fs.Stats, prev: fs.Stats) =>
+		{
+			try
+			{
+				let newConfig = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
+				console.log("Reloading Config");
+				this.events = newConfig;
+			}
+			catch (err)
+			{
+				console.error("You done broke your json.");
+				console.error(err);
+			}
 		});
 
 
@@ -103,6 +112,7 @@ export class ActionQueue
 
 	pushToQueue(actions: Array<any>)
 	{
+		this.convertOffsets(actions);
 		for (let action of actions)
 		{
 			this.queue.push(action);
@@ -113,8 +123,26 @@ export class ActionQueue
 		}
 	}
 
+	convertOffsets(actions: Array<any>)
+	{
+		let timeSinceStart = 0;
+
+		for (let a of actions)
+		{
+			if (a.timestamp)
+			{
+				a.beforeDelay = a.timestamp - timeSinceStart;
+				timeSinceStart = a.timestamp;
+			}
+		}
+	}
+
 	async runAction(action: any)
 	{
+		if (action.beforeDelay)
+		{
+			await Utils.sleep(action.beforeDelay * 1000);
+		}
 		if (action.sound)
 		{
 			//Play the sound
