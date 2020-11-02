@@ -55,7 +55,7 @@ export class ActionQueue
 				return true;
 			}
 		}
-		else if (event instanceof Array)
+		if (event instanceof Array)
 		{
 			this.pushToQueue(event);
 			return true;
@@ -68,7 +68,7 @@ export class ActionQueue
 	{
 		if (this.queue.length > 0)
 		{
-			let front = this.queue.pop();
+			let front = this.queue.shift();
 			let frontPromise = this.runAction(front);
 			this.currentAction = frontPromise;
 			this.currentAction.then(() => this.runNext());
@@ -84,7 +84,7 @@ export class ActionQueue
 		if (this.currentAction)
 			return;
 
-		let front = this.queue.pop();
+		let front = this.queue.shift();
 
 		let frontPromise = this.runAction(front);
 		this.currentAction = frontPromise;
@@ -114,7 +114,7 @@ export class ActionQueue
 		if (action.light)
 		{
 			//Change the lights
-			Lights.pickColor((action.light.hue / 360) * 65535, action.light.bri, action.light.sat);
+			Lights.pickColor((action.light.hue / 360) * 65535, action.light.bri, action.light.sat, action.light.on);
 		}
 		if (action.hue)
 		{

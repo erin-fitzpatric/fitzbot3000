@@ -80,13 +80,14 @@ export module Lights {
         }
     }
 
-    export async function pickColor(hue: number, bri?: number, sat?: number) {
+    export async function pickColor(hue: number, bri?: number, sat?: number, on?: boolean) {
         try {
             const response = await axios.put(
                 `${creds.baseURL}/groups/${groupNumber}/action`, {
                     hue: Math.round(hue),
                     ...bri != undefined ? { bri: Math.round(bri) } : {},
-                    ...sat != undefined ? { sat: Math.round(sat) } : {}
+					...sat != undefined ? { sat: Math.round(sat) } : {},
+					...on != undefined ? { on } : {}
                 }, { timeout: 100 },
             )
             return true
