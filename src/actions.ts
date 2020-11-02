@@ -112,17 +112,30 @@ export class ActionQueue
 	}
 
 
-	pushToQueue(actions: Array<any>)
+	pushToQueue(actions: any)
 	{
-		this.convertOffsets(actions);
-		for (let action of actions)
+		let actionArray = null;
+		if (actions instanceof Array)
+		{
+			actionArray = actions;
+		}
+		else if ("oneOf" in actions)
+		{
+			actionArray = actions.oneOf[Math.floor(Math.random() * actions.oneOf.length)]
+		}
+
+		if (!(actionArray instanceof Array))
+		{
+			return;
+		}
+
+		this.convertOffsets(actionArray);
+		for (let action of actionArray)
 		{
 			this.queue.push(action);
 		}
-		if (!this.currentAction)
-		{
-			this.runStartOfQueue();
-		}
+
+		this.runStartOfQueue();
 	}
 
 	convertOffsets(actions: Array<any>)
@@ -155,7 +168,7 @@ export class ActionQueue
 			//Change the lights
 			Lights.pickColor((action.light.hue / 360) * 65535, action.light.bri, action.light.sat, action.light.on);
 		}
-		if (action.hue)
+		if ("hue" in action)
 		{
 			//Change the lights through hue setting
 			Lights.pickColor((action.hue / 1000) * 65535);
