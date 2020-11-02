@@ -13,6 +13,7 @@ import { Games } from "./games";
 import { Effects } from './effects';
 import { Utils } from './utils';
 import websocket from 'websocket';
+import { getCaretPosition } from './windows';
 
 // Load in JSON files
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
@@ -57,22 +58,24 @@ server.listen(6767, () =>
 	// });
 });
 
-
 let wsServer = new websocket.server({
 	httpServer: server,
 	autoAcceptConnections: true
 })
 
 
-wsServer.on('request', function(request) {
-    
-    var connection = request.accept('echo-protocol', request.origin);
-    console.log((new Date()) + ' Connection accepted.');
-    connection.on('message', function(message: websocket.IMessage) {
-    });
-    connection.on('close', function(reasonCode, description) {
-        console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
-    });
+wsServer.on('request', function (request)
+{
+
+	var connection = request.accept('echo-protocol', request.origin);
+	console.log((new Date()) + ' Connection accepted.');
+	connection.on('message', function (message: websocket.IMessage)
+	{
+	});
+	connection.on('close', function (reasonCode, description)
+	{
+		console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
+	});
 });
 
 async function main()
@@ -150,7 +153,7 @@ async function main()
 			{
 				const spin = (hueNum / 1000);
 				Lights.pickColor(spin * 65535, 254, 254);
-				wsServer.broadcast(JSON.stringify({hue: spin}));
+				wsServer.broadcast(JSON.stringify({ hue: spin }));
 			}
 		}
 		switch (message.toLowerCase())
