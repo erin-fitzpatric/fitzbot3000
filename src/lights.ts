@@ -85,8 +85,8 @@ export module Lights {
             const response = await axios.put(
                 `${creds.baseURL}/groups/${groupNumber}/action`, {
                     hue: Math.round(hue),
-                    ...bri != undefined ? { bri } : {},
-                    ...sat != undefined ? { sat } : {}
+                    ...bri != undefined ? { bri: Math.round(bri) } : {},
+                    ...sat != undefined ? { sat: Math.round(sat) } : {}
                 }, { timeout: 100 },
             )
             return true

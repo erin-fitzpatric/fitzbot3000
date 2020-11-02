@@ -2,24 +2,26 @@ import express from 'express';
 import https from 'https';
 import http from 'http';
 import fs from 'fs';
-import ApiClient from 'twitch';
+import ApiClient, { HelixFollow } from 'twitch';
 import { SignOn } from './signOn';
 import ChatClient, { ChatSubGiftInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
+import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
 import { Lights } from "./lights";
 import { Sounds } from "./sounds";
 import { Games } from "./games";
 import { Effects } from './effects';
 import { Utils } from './utils';
 import websocket from 'websocket';
+import { ActionQueue } from "./actions";
+
 import { getCaretPosition } from './windows';
 
 // Load in JSON files
+const web = JSON.parse(fs.readFileSync('./web.json', 'UTF-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
 const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'UTF-8'));
-const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'UTF-8'));
-const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'UTF-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -31,7 +33,7 @@ const port = 6767;
 let app = express();
 
 let server = http.createServer(app);
-server.listen(6767, () =>
+server.listen(web.port, () =>
 {
 	// sign in with twitch
 	app.get("/auth/twitch", (req, res, next) =>
@@ -61,8 +63,9 @@ server.listen(6767, () =>
 let wsServer = new websocket.server({
 	httpServer: server,
 	autoAcceptConnections: true
-})
+});
 
+let actions = new ActionQueue(JSON.parse(fs.readFileSync('./actions.json', 'UTF-8')), wsServer);
 
 wsServer.on('request', function (request)
 {
@@ -118,6 +121,12 @@ async function main()
 	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
 	const pubSubClient = new PubSubClient();
 
+	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
+		hostName: web.hostname,
+		listenerPort: web.hookPort
+	}));
+	await webhooks.listen();
+
 	const token = await twitchClient.getAccessToken();
 	if (!token)
 	{
@@ -143,105 +152,31 @@ async function main()
 		chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
 	}, 900000);
 
+	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
+	{
+		if (!follow)
+			return;
+		chatClient.say(sayChannel, `Thanks for the follow ${follow?.userDisplayName}`);
+	});
+
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
 		if (message.startsWith('!hue'))
 		{
 			const color = message.slice(4).trim()
 			const hueNum = Number(color)
+
 			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
-				const spin = (hueNum / 1000);
-				Lights.pickColor(spin * 65535, 254, 254);
-				wsServer.broadcast(JSON.stringify({ hue: spin }));
+				actions.pushToQueue([{ hue: hueNum }]);
 			}
 		}
-		switch (message.toLowerCase())
+
+		if (actions.fireEvent('chat', { name: message.toLowerCase() }))
 		{
-			// Fitzbot Messages
-			case '!commands': {
-				chatClient.say(channel, "'!lights', '!sounds', '!hue', '!games', '!effects'");
-				break;
-			}
-			/*case '!discord': {
-				chatClient.say(channel, `Join the discord! ${creds.discord}`);
-				break;
-			}*/
-			case '!lights': {
-				chatClient.say(channel, `You can change the lights on ${channel}'s stream! Try it out: '!red', '!purple', '!blue', or by following, subscribing, and donating bits. You can also pick a color with '!hue'.`);
-				break;
-			}
-			case '!sounds': {
-				chatClient.say(channel, `Try out a sound such as: '!scream', '!suspense', or '!dolphin'. A full list of commands can be found in the discord: ${creds.discord}`);
-				break;
-			}
-			case '!hue': {
-				chatClient.say(channel, "Enter '!hue' followed by a number between 0-1000 to pick a color.");
-				break;
-			}
-			case '!games': {
-				chatClient.say(channel, "'!ping', '!dice'");
-				break;
-			}
-			case '!effects': {
-				chatClient.say(channel, "'!disco', '!police', '!emp', '!torb', '!cat', '!bomb'");
-				break;
-			}
-			// Games
-			case '!dice': {
-				Games.rollDice(chatClient, channel, user);
-				break;
-			}
-			case '!ping': {
-				Games.playPingPong(chatClient, channel, user, botName);
-				break;
-			}
-			// Set lights
-			case '!off': {
-				Lights.lightsOff();
-				break;
-			}
-			case '!on': {
-				Lights.lightsOn();
-				break;
-			}
-			/*case '!police': {
-				await Effects.police();               
-				break;
-			}
-			case '!disco': {
-				await Effects.disco(user);
-				break;
-			}
-			case '!emp': {
-				Effects.emp();
-				break;
-			}
-			case '!torb': {
-				Effects.moltenCore();
-				break;
-			}
-			case '!cat': {
-				Effects.angryCat();
-				break;
-			}*/
+			return;
 		}
-		// Set Scenes 
-		const scene = scenes[message.toLowerCase().substring(1)]
-		if (scene)
-		{
-			console.log(`${user} set a scene!`);
-			Lights.setScene(scene);
-		}
-		// Play Sounds
-		const sound = sounds.soundBites[message.toLowerCase()]
-		if (sound)
-		{
-			console.log(`${user} played a sound!`);
-			Sounds.playSound(sound);
-		}
-	}
-	);
+	});
 
 	// TODO - Follower Event
 
@@ -249,64 +184,43 @@ async function main()
 	await pubSubClient.onBits(userID, (message: PubSubBitsMessage) =>
 	{
 		console.log("Bits bits bits bits!!!", message.bits);
-		Sounds.playSound(sounds.channelEvents.bits);
+		actions.fireEvent("bits", {number: message.bits});
 	});
 
 	//Channel Points Event
 	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
 	{
 		console.log("On redemtion:", JSON.stringify(message));
+		actions.fireEvent("bits", {number: message.rewardName});
 	});
 
 	// Subscription Event
 	chatClient.onSub((channel: any, user: any) =>
 	{
-		Sounds.playSound(sounds.channelEvents.sub);
+		actions.fireEvent("subscribe", {number: 0});
 		chatClient.say(channel, `Thanks to @${user} for subscribing!`);
 	});
 
 	// Resub Event
 	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
 	{
-		Sounds.playSound(sounds.channelEvents.resub);
+		actions.fireEvent("subscribe", {number: subInfo.months});
 		chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
 	});
 
 	// Subgift Event
-	let giftedSubQueue: { channel: any; user: any, subInfo: ChatSubGiftInfo, msg: any }[] = [];
-	let gitedSubQueueComplete = true;
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
 		console.log(`${user} gifted a sub!`);
-		giftedSubQueue.push({
-			channel: channel,
-			user: user,
-			subInfo: subInfo,
-			msg: msg
-		})
-		if (gitedSubQueueComplete)
-		{
-			playSubQueue();
-		}
+		actions.fireEvent('subscribe', {name: "gift"});
+		//giftedSubQueue.push({
+		//	channel: channel,
+		//	user: user,
+		//	subInfo: subInfo,
+		//	msg: msg
+		//})
+
 	});
-	async function playSubQueue()
-	{
-		gitedSubQueueComplete = false;
-		// While gifted subs are in queue
-		while (giftedSubQueue.length)
-		{
-			let sub = giftedSubQueue.pop();
-			if (!sub)
-			{
-				console.log("no giftedSubs!");
-				return;
-			}
-			Sounds.playSound(sounds.channelEvents.subGift);
-			chatClient.say(sayChannel, `Thanks to ${sub.subInfo.gifter} for gifting a subscription to ${sub.user}!`);
-			await Utils.sleep(8000);
-		}
-		gitedSubQueueComplete = true;
-	}
 
 	// TODO - Raids
 }

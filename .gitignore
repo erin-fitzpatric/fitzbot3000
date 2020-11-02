@@ -2,8 +2,8 @@
 /Sounds
 creds.json
 tokens.json
-sounds.json
-scenes.json
+web.json
+actions.json
 
 # Logs
 logs

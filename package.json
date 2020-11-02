@@ -17,6 +17,7 @@
         "twitch": "^4.2.0-pre.5",
         "twitch-chat-client": "^4.2.0-pre.5",
         "twitch-pubsub-client": "^4.2.0-pre.5",
+        "twitch-webhooks": "^4.2.7",
         "web-audio-api": "^0.2.2",
         "websocket": "^1.0.32"
     },
