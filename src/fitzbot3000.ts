@@ -65,11 +65,8 @@ let wsServer = new websocket.server({
 	autoAcceptConnections: true
 });
 
-let actions = new ActionQueue('./actions.json', wsServer);
-
 wsServer.on('request', function (request)
 {
-
 	var connection = request.accept('echo-protocol', request.origin);
 	console.log((new Date()) + ' Connection accepted.');
 	connection.on('message', function (message: websocket.IMessage)
@@ -120,6 +117,8 @@ async function main()
 	const twitchClient = new ApiClient({ authProvider });
 	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
 	const pubSubClient = new PubSubClient();
+
+	let actions = new ActionQueue('./actions.json', wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
 	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
 		hostName: web.hostname,

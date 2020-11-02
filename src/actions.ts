@@ -2,6 +2,7 @@
 import { Lights } from "./lights";
 import { Sounds } from "./sounds";
 import { Utils } from './utils';
+import ChatClient from 'twitch-chat-client';
 import websocket from 'websocket';
 import fs from 'fs';
 
@@ -11,9 +12,10 @@ export class ActionQueue
 	queue: Array<any>;
 	wsServer: websocket.server;
 	currentAction: Promise<any> | null;
+	chatFunc: any;
 
 
-	constructor(configFile: string, wsServer: websocket.server)
+	constructor(configFile: string, wsServer: websocket.server, chatFunc: any)
 	{
 		let config = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
 		fs.watchFile(configFile, (curr: fs.Stats, prev: fs.Stats) =>
@@ -31,7 +33,7 @@ export class ActionQueue
 			}
 		});
 
-
+		this.chatFunc = chatFunc;
 		this.events = config;
 		this.queue = [];
 		this.wsServer = wsServer;
@@ -179,11 +181,16 @@ export class ActionQueue
 			//Broadcast the websocket text
 			this.wsServer.broadcast(action.websocket);
 		}
+		if (action.say)
+		{
+			this.chatFunc(action.say);
+		}
 		if (action.delay)
 		{
 			//Delay the queue before the next action.
 			await Utils.sleep(action.delay * 1000);
 		}
+		
 
 		return true;
 	}
