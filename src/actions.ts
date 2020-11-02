@@ -181,6 +181,12 @@ export class ActionQueue
 			//Broadcast the websocket text
 			this.wsServer.broadcast(action.websocket);
 		}
+		if (action.notification)
+		{
+			this.wsServer.broadcast(JSON.stringify({
+				notification: action.notification
+			}));
+		}
 		if (action.say)
 		{
 			this.chatFunc(action.say);
@@ -190,7 +196,7 @@ export class ActionQueue
 			//Delay the queue before the next action.
 			await Utils.sleep(action.delay * 1000);
 		}
-		
+
 
 		return true;
 	}

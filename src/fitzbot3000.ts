@@ -55,9 +55,8 @@ server.listen(web.port, () =>
 		let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
 		authDataPromiseResolver(authData);
 	})
-	// app.post("/followers/callback", async (req, res, next) => {
 
-	// });
+	app.use(express.static("./public"));
 });
 
 let wsServer = new websocket.server({
@@ -155,7 +154,8 @@ async function main()
 	{
 		if (!follow)
 			return;
-		chatClient.say(sayChannel, `Thanks for the follow ${follow?.userDisplayName}`);
+		actions.pushToQueue([{notification: `Thanks for following ${follow?.userDisplayName}`}])
+		//chatClient.say(sayChannel, `Thanks for the follow ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', {});
 	});
 
@@ -209,6 +209,7 @@ async function main()
 	// Subscription Event
 	chatClient.onSub((channel: any, user: any) =>
 	{
+		actions.pushToQueue([{notification: `Everybody thank ${user} for subscribing!`}]);
 		actions.fireEvent("subscribe", { number: 0 });
 		chatClient.say(channel, `Thanks to @${user} for subscribing!`);
 	});
@@ -216,19 +217,23 @@ async function main()
 	// Resub Event
 	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
 	{
+		actions.pushToQueue([{notification: `${user} is back for their ${subInfo.months} sub!`}]);
 		actions.fireEvent("subscribe", { number: subInfo.months });
 		chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
 	});
 
 	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
 	{
+		actions.pushToQueue([{notification: `!!!${raidInfo.displayName} is RAIDING!!!`}]);
 		actions.fireEvent("raid", { number: raidInfo.viewerCount });
+		actions.pushToQueue([{notification: `Welcome to all ${raidInfo.viewerCount} views from ${raidInfo.displayName}'s channel`}]);
 	})
 
 	// Subgift Event
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
 		console.log(`${user} gifted a sub!`);
+		actions.pushToQueue([{notification: `${subInfo.gifterDisplayName} gave ${subInfo.displayName} a sub!`}]);
 		actions.fireEvent('subscribe', { name: "gift" });
 		//giftedSubQueue.push({
 		//	channel: channel,
@@ -238,9 +243,6 @@ async function main()
 		//})
 
 	});
-
-	// TODO - Raids
-
 }
 
 main();
