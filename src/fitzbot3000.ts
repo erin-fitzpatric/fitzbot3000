@@ -65,7 +65,7 @@ let wsServer = new websocket.server({
 	autoAcceptConnections: true
 });
 
-let actions = new ActionQueue(JSON.parse(fs.readFileSync('./actions.json', 'UTF-8')), wsServer);
+let actions = new ActionQueue('./actions.json', wsServer);
 
 wsServer.on('request', function (request)
 {

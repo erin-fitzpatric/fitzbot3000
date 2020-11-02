@@ -3,6 +3,7 @@ import { Lights } from "./lights";
 import { Sounds } from "./sounds";
 import { Utils } from './utils';
 import websocket from 'websocket';
+import fs from 'fs';
 
 export class ActionQueue
 {
@@ -12,8 +13,16 @@ export class ActionQueue
 	currentAction: Promise<any> | null;
 
 
-	constructor(config: any, wsServer: websocket.server)
+	constructor(configFile: string, wsServer: websocket.server)
 	{
+		let config = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
+		fs.watchFile(configFile, (curr: fs.Stats, prev: fs.Stats) => {
+			let newConfig = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
+			console.log("Reloading Config");
+			this.events = newConfig;
+		});
+
+
 		this.events = config;
 		this.queue = [];
 		this.wsServer = wsServer;
