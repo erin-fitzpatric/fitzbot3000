@@ -59,7 +59,7 @@ export class ActionQueue
 				if (options.number > keyNumber)
 					selected = event[key];
 			}
-			if (selected && selected instanceof Array)
+			if (selected)
 			{
 				this.pushToQueue(selected);
 				return true;
