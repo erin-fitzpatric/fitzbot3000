@@ -154,9 +154,7 @@ async function main()
 	{
 		if (!follow)
 			return;
-		actions.pushToQueue([{notification: `Thanks for following ${follow?.userDisplayName}`}])
-		//chatClient.say(sayChannel, `Thanks for the follow ${follow?.userDisplayName}`);
-		actions.fireEvent('follow', {});
+		actions.fireEvent('follow', {user: follow?.userDisplayName});
 	});
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
@@ -168,7 +166,7 @@ async function main()
 
 			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
-				actions.pushToQueue([{ hue: hueNum }]);
+				actions.pushToQueue([{ hue: hueNum }], {user});
 				return;
 			}
 		}
@@ -179,12 +177,12 @@ async function main()
 
 			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
-				actions.pushToQueue([{ light: { hue: hueNum } }]);
+				actions.pushToQueue([{ light: { hue: hueNum } }], {user});
 				return;
 			}
 		}
 
-		if (actions.fireEvent('chat', { name: message.toLowerCase() }))
+		if (actions.fireEvent('chat', { name: message.toLowerCase(), user }))
 		{
 			return;
 		}
@@ -209,39 +207,27 @@ async function main()
 	// Subscription Event
 	chatClient.onSub((channel: any, user: any) =>
 	{
-		actions.pushToQueue([{notification: `Everybody thank ${user} for subscribing!`}]);
-		actions.fireEvent("subscribe", { number: 0 });
+		actions.fireEvent("subscribe", { number: 0, user });
 		chatClient.say(channel, `Thanks to @${user} for subscribing!`);
 	});
 
 	// Resub Event
 	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
 	{
-		actions.pushToQueue([{notification: `${user} is back for their ${subInfo.months} sub!`}]);
-		actions.fireEvent("subscribe", { number: subInfo.months });
+		actions.fireEvent("subscribe", { number: subInfo.months, user });
 		chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
 	});
 
 	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
 	{
-		actions.pushToQueue([{notification: `!!!${raidInfo.displayName} is RAIDING!!!`}]);
-		actions.fireEvent("raid", { number: raidInfo.viewerCount });
-		actions.pushToQueue([{notification: `Welcome to all ${raidInfo.viewerCount} views from ${raidInfo.displayName}'s channel`}]);
+		actions.fireEvent("raid", { number: raidInfo.viewerCount, user });
 	})
 
 	// Subgift Event
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
 		console.log(`${user} gifted a sub!`);
-		actions.pushToQueue([{notification: `${subInfo.gifterDisplayName} gave ${subInfo.displayName} a sub!`}]);
-		actions.fireEvent('subscribe', { name: "gift" });
-		//giftedSubQueue.push({
-		//	channel: channel,
-		//	user: user,
-		//	subInfo: subInfo,
-		//	msg: msg
-		//})
-
+		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
 	});
 }
 

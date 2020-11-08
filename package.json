@@ -6,11 +6,13 @@
     "dependencies": {
         "@types/express": "^4.17.7",
         "@types/ffi-napi": "^2.4.3",
+        "@types/mustache": "^4.0.1",
         "@types/websocket": "^1.0.1",
         "axios": "^0.19.2",
         "express": "^4.17.1",
         "ffi-napi": "^3.0.1",
         "http": "0.0.1-security",
+        "mustache": "^4.0.1",
         "path": "^0.12.7",
         "pizzicato": "^0.6.4",
         "sound-play": "^1.0.5",

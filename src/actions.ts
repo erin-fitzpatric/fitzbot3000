@@ -5,6 +5,7 @@ import { Utils } from './utils';
 import ChatClient from 'twitch-chat-client';
 import websocket from 'websocket';
 import fs from 'fs';
+import Mustache from 'mustache';
 
 export class ActionQueue
 {
@@ -61,7 +62,7 @@ export class ActionQueue
 			}
 			if (selected)
 			{
-				this.pushToQueue(selected);
+				this.pushToQueue(selected, options);
 				return true;
 			}
 		}
@@ -71,13 +72,13 @@ export class ActionQueue
 			let namedEvent = event[options.name];
 			if (namedEvent)
 			{
-				this.pushToQueue(namedEvent);
+				this.pushToQueue(namedEvent, options);
 				return true;
 			}
 		}
 		if (event instanceof Array)
 		{
-			this.pushToQueue(event);
+			this.pushToQueue(event, options);
 			return true;
 		}
 
@@ -114,7 +115,7 @@ export class ActionQueue
 	}
 
 
-	pushToQueue(actions: any)
+	pushToQueue(actions: any, context: any)
 	{
 		let actionArray = null;
 		if (actions instanceof Array)
@@ -134,7 +135,8 @@ export class ActionQueue
 		this.convertOffsets(actionArray);
 		for (let action of actionArray)
 		{
-			this.queue.push(action);
+			let fullAction = {...context, ...action};
+			this.queue.push(fullAction);
 		}
 
 		this.runStartOfQueue();
@@ -184,7 +186,7 @@ export class ActionQueue
 		if (action.notification)
 		{
 			this.wsServer.broadcast(JSON.stringify({
-				notification: action.notification
+				notification: Mustache.render(action.notification, action)
 			}));
 		}
 		if (action.say)
