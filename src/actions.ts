@@ -7,6 +7,14 @@ import websocket from 'websocket';
 import fs from 'fs';
 import Mustache from 'mustache';
 
+function handleImport(file: string, files: Set<string>)
+{
+	console.log(`Loading ${file}`);
+	let pojo = JSON.parse(fs.readFileSync(file, 'UTF-8'));
+	files.add(file);
+	return pojo;
+}
+
 export class ActionQueue
 {
 	events: any;
@@ -14,28 +22,94 @@ export class ActionQueue
 	wsServer: websocket.server;
 	currentAction: Promise<any> | null;
 	chatFunc: any;
+	configFile: string;
+	watchers: Array<fs.FSWatcher>;
 
-
-	constructor(configFile: string, wsServer: websocket.server, chatFunc: any)
+	reload()
 	{
-		let config = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
-		fs.watchFile(configFile, (curr: fs.Stats, prev: fs.Stats) =>
+		let files: Set<string>;
+		files = new Set<string>();
+
+		let config = handleImport(this.configFile, files);
+
+		for (let eventId in config)
+		{
+			let event = config[eventId];
+			if (event instanceof Array)
+			{
+				continue;
+			}
+			if ("oneOf" in event)
+			{
+				for (let subActionListId in event.oneOf)
+				{
+					let subAction = event.oneOf[subActionListId];
+					if ("import" in subAction)
+					{
+						event.oneOf[subActionListId] = handleImport(subAction["import"], files);
+					}
+				}
+			}
+			else if ("import" in event) {
+				config[eventId] = handleImport(event["import"], files);
+			}
+			else
+			{
+				//Named event or Number Event
+				for (let subActionListId in event)
+				{
+					let subAction = event[subActionListId];
+					if ("import" in subAction)
+					{
+						event[subActionListId] = handleImport(subAction["import"], files);
+					}
+					else if ("oneOf" in subAction)
+					{
+						for (let subSubActionListId in subAction.oneOf)
+						{
+							let subSubAction = subAction.oneOf[subSubActionListId];
+							if ("import" in subSubAction)
+							{
+								subAction[subSubActionListId] = handleImport(subSubAction["import"], files);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		this.events = config;
+
+		let filesArr = Array.from(files);
+
+		for (let w of this.watchers)
+		{
+			w.close();
+		}
+
+		this.watchers = filesArr.map((f) => fs.watch(f, () =>
 		{
 			try
 			{
-				let newConfig = JSON.parse(fs.readFileSync(configFile, 'UTF-8'));
 				console.log("Reloading Config");
-				this.events = newConfig;
+				this.reload()
 			}
 			catch (err)
 			{
 				console.error("You done broke your json.");
 				console.error(err);
 			}
-		});
+		}));
+
+	}
+
+	constructor(configFile: string, wsServer: websocket.server, chatFunc: any)
+	{
+		this.configFile = configFile;
+		this.watchers = [];
+		this.reload();
 
 		this.chatFunc = chatFunc;
-		this.events = config;
 		this.queue = [];
 		this.wsServer = wsServer;
 		this.currentAction = null;
@@ -135,7 +209,7 @@ export class ActionQueue
 		this.convertOffsets(actionArray);
 		for (let action of actionArray)
 		{
-			let fullAction = {...context, ...action};
+			let fullAction = { ...context, ...action };
 			this.queue.push(fullAction);
 		}
 
