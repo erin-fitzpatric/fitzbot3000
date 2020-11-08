@@ -15,6 +15,41 @@ function handleImport(file: string, files: Set<string>)
 	return pojo;
 }
 
+function handleActionArray(actions: Array<any>, files: Set<string>)
+{
+	for (let i = 0; i < actions.length; ++i) {
+		let action = actions[i];
+		if ("import" in action)
+		{
+			let actionsInsert = handleImport(action["import"], files);
+			if (!(actionsInsert instanceof Array))
+			{
+				throw new Error("Imports in the middle of action arrays must be arrays themselves");
+			}
+
+			actions.splice(i, 1, ...actionsInsert);
+
+			i += actionsInsert.length - 1;
+		}
+	}
+}
+
+function handleOneOf(parent: any, files: Set<string>)
+{
+	for (let subActionListId in parent.oneOf)
+	{
+		let subAction = parent.oneOf[subActionListId];
+		if ("import" in subAction)
+		{
+			parent.oneOf[subActionListId] = handleImport(subAction["import"], files);
+		}
+		else if (subAction instanceof Array)
+		{
+			handleActionArray(subAction, files);
+		}
+	}
+}
+
 export class ActionQueue
 {
 	events: any;
@@ -37,20 +72,14 @@ export class ActionQueue
 			let event = config[eventId];
 			if (event instanceof Array)
 			{
-				continue;
+				handleActionArray(event, files);
 			}
 			if ("oneOf" in event)
 			{
-				for (let subActionListId in event.oneOf)
-				{
-					let subAction = event.oneOf[subActionListId];
-					if ("import" in subAction)
-					{
-						event.oneOf[subActionListId] = handleImport(subAction["import"], files);
-					}
-				}
+				handleOneOf(event, files);
 			}
-			else if ("import" in event) {
+			else if ("import" in event)
+			{
 				config[eventId] = handleImport(event["import"], files);
 			}
 			else
@@ -65,14 +94,11 @@ export class ActionQueue
 					}
 					else if ("oneOf" in subAction)
 					{
-						for (let subSubActionListId in subAction.oneOf)
-						{
-							let subSubAction = subAction.oneOf[subSubActionListId];
-							if ("import" in subSubAction)
-							{
-								subAction[subSubActionListId] = handleImport(subSubAction["import"], files);
-							}
-						}
+						handleOneOf(subAction, files);
+					}
+					else if (subAction instanceof Array)
+					{
+						handleActionArray(subAction, files);
 					}
 				}
 			}
