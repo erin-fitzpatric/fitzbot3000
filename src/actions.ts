@@ -17,7 +17,8 @@ function handleImport(file: string, files: Set<string>)
 
 function handleActionArray(actions: Array<any>, files: Set<string>)
 {
-	for (let i = 0; i < actions.length; ++i) {
+	for (let i = 0; i < actions.length; ++i)
+	{
 		let action = actions[i];
 		if ("import" in action)
 		{
@@ -26,6 +27,9 @@ function handleActionArray(actions: Array<any>, files: Set<string>)
 			{
 				throw new Error("Imports in the middle of action arrays must be arrays themselves");
 			}
+
+			//Handle recursive imports
+			handleActionArray(actionsInsert, files);
 
 			actions.splice(i, 1, ...actionsInsert);
 
@@ -41,7 +45,16 @@ function handleOneOf(parent: any, files: Set<string>)
 		let subAction = parent.oneOf[subActionListId];
 		if ("import" in subAction)
 		{
-			parent.oneOf[subActionListId] = handleImport(subAction["import"], files);
+			let newActions = handleImport(subAction["import"], files);
+
+			//Handle recursive imports.
+			handleActionArray(newActions, files);
+
+			if (!(newActions instanceof Array))
+			{
+				throw new Error("Imports in oneOfs must be arrays");
+			}
+			parent.oneOf[subActionListId] = newActions;
 		}
 		else if (subAction instanceof Array)
 		{
@@ -67,6 +80,7 @@ export class ActionQueue
 
 		let config = handleImport(this.configFile, files);
 
+		//Handle imports.
 		for (let eventId in config)
 		{
 			let event = config[eventId];
@@ -80,7 +94,17 @@ export class ActionQueue
 			}
 			else if ("import" in event)
 			{
-				config[eventId] = handleImport(event["import"], files);
+				//Check for recursive imports.
+				let newEvent = handleImport(event["import"], files);
+				if (newEvent instanceof Array)
+				{
+					handleActionArray(newEvent, files);
+				}
+				if ("oneOf" in newEvent)
+				{
+					handleOneOf(newEvent, files);
+				}
+				config[eventId] = newEvent;
 			}
 			else
 			{
@@ -90,7 +114,17 @@ export class ActionQueue
 					let subAction = event[subActionListId];
 					if ("import" in subAction)
 					{
-						event[subActionListId] = handleImport(subAction["import"], files);
+						//Check for recursive imports.
+						let newEvent = handleImport(subAction["import"], files);
+						if (newEvent instanceof Array)
+						{
+							handleActionArray(newEvent, files);
+						}
+						if ("oneOf" in newEvent)
+						{
+							handleOneOf(newEvent, files);
+						}
+						event[subActionListId] = newEvent;
 					}
 					else if ("oneOf" in subAction)
 					{
