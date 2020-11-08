@@ -142,20 +142,15 @@ async function main()
 	const botName = creds.botCreds.username;
 	const sayChannel = `${creds.channel.toLowerCase()}`;
 	chatClient.say(sayChannel, `${botName} is online!`);
-	chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
+	//chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
 
 	// Timer Messages
-	setInterval(() =>
-	{
-		chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
-	}, 900000);
+	//setInterval(() =>
+	//{
+	//	chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
+	//}, 900000);
 
-	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
-	{
-		if (!follow)
-			return;
-		actions.fireEvent('follow', {user: follow?.userDisplayName});
-	});
+
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
@@ -166,7 +161,7 @@ async function main()
 
 			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
-				actions.pushToQueue([{ hue: hueNum }], {user});
+				actions.pushToQueue([{ hue: hueNum }], { user });
 				return;
 			}
 		}
@@ -177,7 +172,7 @@ async function main()
 
 			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
-				actions.pushToQueue([{ light: { hue: hueNum } }], {user});
+				actions.pushToQueue([{ light: { hue: hueNum } }], { user });
 				return;
 			}
 		}
@@ -188,47 +183,51 @@ async function main()
 		}
 	});
 
-	// TODO - Follower Event
+	//Follower Event
+	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
+	{
+		if (!follow)
+			return;
+		actions.fireEvent('follow', { user: follow?.userDisplayName });
+	});
 
 	// Bits Event
 	await pubSubClient.onBits(userID, (message: PubSubBitsMessage) =>
 	{
 		console.log("Bits bits bits bits!!!", message.bits);
-		actions.fireEvent("bits", { number: message.bits });
+		actions.fireEvent("bits", { number: message.bits, user: message.userName });
 	});
 
 	//Channel Points Event
 	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
 	{
-		console.log("On redemtion:", JSON.stringify(message));
-		actions.fireEvent("bits", { number: message.rewardName });
+		console.log("On redemption:", JSON.stringify(message));
+		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
-	// Subscription Event
+	/////////////////////////
+	// Subscription Events
+	///////////////////////////
 	chatClient.onSub((channel: any, user: any) =>
 	{
 		actions.fireEvent("subscribe", { number: 0, user });
-		chatClient.say(channel, `Thanks to @${user} for subscribing!`);
 	});
-
-	// Resub Event
 	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
 	{
 		actions.fireEvent("subscribe", { number: subInfo.months, user });
-		chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
+	});
+	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
+	{
+		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
 	});
 
+	//Raid Event
 	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
 	{
 		actions.fireEvent("raid", { number: raidInfo.viewerCount, user });
 	})
 
-	// Subgift Event
-	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
-	{
-		console.log(`${user} gifted a sub!`);
-		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
-	});
+
 }
 
 main();
