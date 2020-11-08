@@ -6,6 +6,7 @@ import ChatClient from 'twitch-chat-client';
 import websocket from 'websocket';
 import fs from 'fs';
 import Mustache from 'mustache';
+import say from 'say';
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -326,6 +327,10 @@ export class ActionQueue
 		if (action.say)
 		{
 			this.chatFunc(action.say);
+		}
+		if (action.speak)
+		{
+			say.speak(Mustache.render(action.speak, action));
 		}
 		if (action.delay)
 		{

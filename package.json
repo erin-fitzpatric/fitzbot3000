@@ -15,6 +15,7 @@
         "mustache": "^4.0.1",
         "path": "^0.12.7",
         "pizzicato": "^0.6.4",
+        "say": "^0.16.0",
         "sound-play": "^1.0.5",
         "twitch": "^4.2.0-pre.5",
         "twitch-chat-client": "^4.2.0-pre.5",
