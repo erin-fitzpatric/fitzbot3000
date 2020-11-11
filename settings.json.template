@@ -1,0 +1,7 @@
+{
+	"intervalMessage": "Try out some of FitzBot's commands: '!lights', '!sounds', '!hue', '!games', '!effects",
+	"games": {
+		"pingpong": true,
+		"dice": true
+	}
+}

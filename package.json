@@ -5,16 +5,24 @@
     "main": "./src/fitzbot3000.js",
     "dependencies": {
         "@types/express": "^4.17.7",
+        "@types/ffi-napi": "^2.4.3",
+        "@types/mustache": "^4.0.1",
+        "@types/websocket": "^1.0.1",
         "axios": "^0.19.2",
         "express": "^4.17.1",
+        "ffi-napi": "^3.0.1",
         "http": "0.0.1-security",
+        "mustache": "^4.0.1",
         "path": "^0.12.7",
         "pizzicato": "^0.6.4",
+        "say": "^0.16.0",
         "sound-play": "^1.0.5",
         "twitch": "^4.2.0-pre.5",
         "twitch-chat-client": "^4.2.0-pre.5",
         "twitch-pubsub-client": "^4.2.0-pre.5",
-        "web-audio-api": "^0.2.2"
+        "twitch-webhooks": "^4.2.7",
+        "web-audio-api": "^0.2.2",
+        "websocket": "^1.0.32"
     },
     "devDependencies": {
         "eslint": "^7.2.0",

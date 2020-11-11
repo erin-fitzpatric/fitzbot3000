@@ -1,9 +1,12 @@
 # My Ignores
 /Sounds
+/effects
 creds.json
 tokens.json
-sounds.json
-scenes.json
+web.json
+actions.json
+globals.json
+settings.json
 
 # Logs
 logs

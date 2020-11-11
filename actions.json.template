@@ -1,0 +1,20 @@
+{
+	"follow": [{"sound": "/sounds/youtube/Thug Life.mp3"}],
+	"chat": {
+		"!womp": [{"sound": "/sounds/womp.mp3"}],
+		"!slap": [{"sound": "/sounds/youtube/slap.mp3"}]
+	},
+	"subscribe": {
+		"0": [{"sound": "/sound/party.mp3"}],
+		"1": [{"sound": "/sound/biggerParty.mp3"}],
+		"gift": []
+	},
+	"bits": {
+		"0": [],
+		"100": [],
+		"1000": []
+	},
+	"redemption": {
+		"award": []
+	}
+}

@@ -1,330 +1,295 @@
 import express from 'express';
 import https from 'https';
 import http from 'http';
-import  fs from 'fs';
-import ApiClient from 'twitch';
+import fs from 'fs';
+import ApiClient, { HelixFollow } from 'twitch';
 import { SignOn } from './signOn';
-import ChatClient, { ChatSubGiftInfo } from 'twitch-chat-client';
-import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage }  from 'twitch-pubsub-client';
-import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth'; 
+import ChatClient, { ChatRaidInfo, ChatSubGiftInfo } from 'twitch-chat-client';
+import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
+import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
+import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
 import { Lights } from "./lights";
 import { Sounds } from "./sounds";
 import { Games } from "./games";
 import { Effects } from './effects';
 import { Utils } from './utils';
+import websocket from 'websocket';
+import { ActionQueue } from "./actions";
+
+import { getCaretPosition } from './windows';
 
 // Load in JSON files
+const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
+const web = JSON.parse(fs.readFileSync('./web.json', 'UTF-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
 const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'UTF-8'));
-const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'UTF-8'));
-const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'UTF-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
-let authDataPromiseResolver : (para: any) => void;
+let authDataPromiseResolver: (para: any) => void;
+
+const port = 6767;
 
 // start server
 let app = express();
-http.createServer(app).listen(8080, () => {
-    // sign in with twitch
-    app.get("/auth/twitch", (req, res, next) => {
-        let redirect_uri = "http://localhost:8080/auth/signin-twitch";
-        res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
-        return next();
-    })
-    // redirect from twitch
-    app.get("/auth/signin-twitch", async (req, res, next) => {
-        if (!req.query.code) {
-            let error = req.query.error;
-            let errorMsg = req.query.error_description;
-            console.error("Auth Error", error, errorMsg);
-            throw new Error(`Error: ${error}: ${errorMsg}`);
-        }
-        let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
-        authDataPromiseResolver(authData);
-    })
-    // app.post("/followers/callback", async (req, res, next) => {
 
-    // });
+let server = http.createServer(app);
+server.listen(web.port, () =>
+{
+	// sign in with twitch
+	app.get("/auth/twitch", (req, res, next) =>
+	{
+		let redirect_uri = `http://localhost:${port}/auth/signin-twitch`;
+		res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
+		return next();
+	})
+	// redirect from twitch
+	app.get("/auth/signin-twitch", async (req, res, next) =>
+	{
+		if (!req.query.code)
+		{
+			let error = req.query.error;
+			let errorMsg = req.query.error_description;
+			console.error("Auth Error", error, errorMsg);
+			throw new Error(`Error: ${error}: ${errorMsg}`);
+		}
+		let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
+		authDataPromiseResolver(authData);
+	})
+
+	app.use(express.static("./public"));
 });
 
-async function main() {
-    // Get credentials
-    let tokenData = SignOn.getAuthData();
+let wsServer = new websocket.server({
+	httpServer: server,
+	autoAcceptConnections: true
+});
 
-    // get tokens if missing
-    if (!tokenData.access_token || !tokenData.refresh_token) 
-    {
-        //Wait here for signin to complete.
-        let authPromise = new Promise((resolve, reject) => {
-            authDataPromiseResolver = resolve;
-        });
+wsServer.on('request', function (request)
+{
+	var connection = request.accept('echo-protocol', request.origin);
+	console.log((new Date()) + ' Connection accepted.');
+	connection.on('message', function (message: websocket.IMessage)
+	{
+	});
+	connection.on('close', function (reasonCode, description)
+	{
+		console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
+	});
+});
 
-        let authData = await authPromise;
-        SignOn.saveAuthData(authData);
-        tokenData = authData;
+async function main()
+{
+	// Get credentials
+	let tokenData = SignOn.getAuthData();
 
-        console.log("Successfully got signin callback.");
-    }
+	// get tokens if missing
+	if (!tokenData.access_token || !tokenData.refresh_token) 
+	{
+		//Wait here for signin to complete.
+		let authPromise = new Promise((resolve, reject) =>
+		{
+			authDataPromiseResolver = resolve;
+		});
 
-    const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes.scopes), {
-        clientSecret: creds.botCreds.secret,
-        refreshToken: tokenData.refresh_token,
-        expiry: tokenData.expiryTimestamp === null ? null : new Date(tokenData.expiryTimestamp),
-        onRefresh: async (tokenData: AccessToken) => {
-            const newTokenData = {
-                access_token: tokenData.accessToken,
-                refresh_token: tokenData.refreshToken,
-                expiryTimestamp: tokenData.expiryDate === null ? null : tokenData.expiryDate.getTime()
-            };
-            SignOn.saveAuthData(newTokenData);
-        }
-    });
+		let authData = await authPromise;
+		SignOn.saveAuthData(authData);
+		tokenData = authData;
 
-    const twitchClient = new ApiClient({authProvider});
-    const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
-    const pubSubClient = new PubSubClient();
-    
-    const token = await twitchClient.getAccessToken();
-    if (!token) {
-        console.log("No token!");
-        return;
-    }
-    let userID = (await getTokenInfo(token.accessToken)).userId;
-    
-    await pubSubClient.registerUserListener(twitchClient);
-    
-    // Connect to Twitch
-    await chatClient.connect();
+		console.log("Successfully got signin callback.");
+	}
 
-    // On Init
-    const botName = creds.botCreds.username;
-    const sayChannel = `${creds.channel.toLowerCase()}`;
-    chatClient.say(sayChannel, `${botName} is online!`);
-    chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
+	const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes.scopes), {
+		clientSecret: creds.botCreds.secret,
+		refreshToken: tokenData.refresh_token,
+		expiry: tokenData.expiryTimestamp === null ? null : new Date(tokenData.expiryTimestamp),
+		onRefresh: async (tokenData: AccessToken) =>
+		{
+			const newTokenData = {
+				access_token: tokenData.accessToken,
+				refresh_token: tokenData.refreshToken,
+				expiryTimestamp: tokenData.expiryDate === null ? null : tokenData.expiryDate.getTime()
+			};
+			SignOn.saveAuthData(newTokenData);
+		}
+	});
 
-    // Timer Messages
-    setInterval(() => { 
-        chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
-    }, 900000);
+	const twitchClient = new ApiClient({ authProvider });
+	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
+	const pubSubClient = new PubSubClient();
 
-    let lossCount = 0;
-    let winCount = 0;
-    let tieCount = 0;
+	let actions = new ActionQueue('./actions.json', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
-    chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) => {
-            if (message.startsWith('!hue')) {
-                const color = message.slice(4).trim()
-                const hueNum = Number(color)
-                if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000) {
-                    const hueApiNum = (hueNum / 1000) * 65535
-                    Lights.pickColor(hueApiNum);
-                }
-            }
-            switch (message.toLowerCase()) {
-                // Fitzbot Messages
-                case '!commands': {
-                    chatClient.say(channel, "'!lights', '!sounds', '!hue', '!games', '!effects'");
-                    break;
-                }
-                case '!discord': {
-                    chatClient.say(channel, `Join the discord! ${creds.discord}`);
-                    break;
-                }
-                case '!lights': {
-                    chatClient.say(channel, `You can change the lights on @${creds.channel}'s stream! Try it out: '!red', '!purple', '!blue', or by following, subscribing, and donating bits. You can also pick a color with '!hue'.`);
-                    break;
-                }
-                case '!sounds': {
-                    chatClient.say(channel, `Try out a sound such as: '!scream', '!suspense', or '!dolphin'. A full list of commands can be found in the discord: ${creds.discord}`);
-                    break;
-                }
-                case '!hue': {
-                    chatClient.say(channel, "Enter '!hue' followed by a number between 0-1000 to pick a color.");
-                    break;
-                }
-                case '!games': {
-                    chatClient.say(channel, "'!ping', '!dice'");
-                    break;
-                }
-                case '!effects': {
-                    chatClient.say(channel, "'!disco', '!police', '!emp', '!torb', '!cat', '!bomb'");
-                    break;
-                }
-                // Games
-                case '!dice': {
-                    Games.rollDice(chatClient, channel, user);
-                    break;
-                }
-                case '!ping': {
-                    Games.playPingPong(chatClient, channel, user, botName);
-                    break;
-                }
-                // Set lights
-                case '!off': {
-                    Lights.lightsOff();
-                    break;
-                }
-                case '!on': {
-                    Lights.lightsOn();
-                    break;
-                }
-                case '!police': {
-                    await Effects.police();               
-                    break;
-                }
-                case '!disco': {
-                    await Effects.disco(user);
-                    break;
-                }
-                case '!emp': {
-                    Effects.emp();
-                    break;
-                }
-                case '!torb': {
-                    Effects.moltenCore();
-                    break;
-                }
-                case '!cat': {
-                    Effects.angryCat();
-                    break;
-                }
-                case '!score': {
-                    chatClient.say(channel, `The current score is ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!win': {
-                    winCount++;
-                    chatClient.say(channel, `@${creds.channel} wins :) :) :)!!! The current score is ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!unwin': {
-                    winCount--;
-                    chatClient.say(channel, `Someone messed up the score counter...win removed! Updated score: ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!loss': {
-                    lossCount++;
-                    chatClient.say(channel, `@${creds.channel} lost :( :( :(...the current score is ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!unloss': {
-                    lossCount--;
-                    chatClient.say(channel, `Someone messed up the score counter...loss removed! Updated score: ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!reset': {
-                    winCount = 0;
-                    lossCount = 0;
-                    chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
-                    break;
-                }
-                case '!social': {
-                    chatClient.say(channel, `Follow @${creds.channel} on Discord: ${creds.discord}, YouTube: ${creds.youtube}, and Twitter: ${creds.twitter}!`);
-                    break;
-                }
-                case '!youtube': {
-                    chatClient.say(channel, `Follow @${creds.channel} on YouTube: ${creds.youtube}!`);
-                    break;
-                }
-                case '!twitter': {
-                    chatClient.say(channel, `Follow @${creds.channel} on Twitter: ${creds.twitter}!`);
-                    break;
-                }
-                case '!hydrate': {
-                    chatClient.say(channel, `@${creds.channel}...hydration time! Squid1 Squid2 Squid3 Squid4`);
-                    break;
-                }
-                case '!posture': {
-                    chatClient.say(channel, `Sit up @${creds.channel}...you slouch!`);
-                    break;
-                }
-                // Age of Empires
-                case '!villager': {
-                    chatClient.say(channel, `@${creds.channel}...make villagers!!!`);
-                    break;
-                }
-                case '!shipment': {
-                    chatClient.say(channel, `@${creds.channel}...send your home city shipment!!!`);
-                    break;
-                }
-                case '!deck': {
-                    chatClient.say(channel, `https://discordapp.com/channels/534472908765134849/775022612001849455/775022763953487872`);
-                    break;
-                }
-            }
-            // Set Scenes 
-            const scene = scenes[message.toLowerCase().substring(1)]
-            if (scene) {
-                console.log(`${user} set a scene!`);
-                Lights.setScene(scene);
-            }
-            // Play Sounds
-            const sound = sounds.soundBites[message.toLowerCase()]
-            if (sound) {
-                console.log(`${user} played a sound!`);
-                Sounds.playSound(sound);
-            }
-        }
-    );
+	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
+		hostName: web.hostname,
+		listenerPort: web.hookPort
+	}));
+	await webhooks.listen();
 
-    // TODO - Follower Event
+	const token = await twitchClient.getAccessToken();
+	if (!token)
+	{
+		console.log("No token!");
+		return;
+	}
+	let userID = (await getTokenInfo(token.accessToken)).userId;
 
-    // Bits Event
-    await pubSubClient.onBits(userID, (message: PubSubBitsMessage) => {
-        console.log("Bits bits bits bits!!!", message.bits);
-        Sounds.playSound(sounds.channelEvents.bits);
-    });
-    
-    //Channel Points Event
-    await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) => {
-        console.log("On redemtion:", JSON.stringify(message));
-    });
+	await pubSubClient.registerUserListener(twitchClient);
 
-    // Subscription Event
-    chatClient.onSub((channel: any, user: any) => {
-        Sounds.playSound(sounds.channelEvents.sub);
-        chatClient.say(channel, `Thanks to @${user} for subscribing!`);
-    });
+	// Connect to Twitch
+	await chatClient.connect();
 
-    // Resub Event
-    chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) => {
-        Sounds.playSound(sounds.channelEvents.resub);
-        chatClient.say(channel, `Thanks to @${user} for subscribing to the channel for a total of ${subInfo.months} months!`);
-    });
+	// On Init
+	const botName = creds.botCreds.username;
+	const sayChannel = `${creds.channel.toLowerCase()}`;
+	chatClient.say(sayChannel, `${botName} is online!`);
 
-    // Subgift Event
-    let giftedSubQueue: { channel: any; user: any, subInfo: ChatSubGiftInfo, msg: any}[] = [];
-    let gitedSubQueueComplete = true;
-    chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) => {
-        console.log(`${user} gifted a sub!`);
-        giftedSubQueue.push({
-                channel: channel,
-                user: user,
-                subInfo: subInfo,
-                msg: msg
-            })
-            if (gitedSubQueueComplete) {
-                playSubQueue();
-            } 
-        });
-    async function playSubQueue () {
-        gitedSubQueueComplete = false;
-        // While gifted subs are in queue
-        while (giftedSubQueue.length) {
-            let sub = giftedSubQueue.pop();
-            if (!sub) {
-                console.log("no giftedSubs!");
-                return;
-            } 
-            Sounds.playSound(sounds.channelEvents.subGift);
-            chatClient.say(sayChannel, `Thanks to ${sub.subInfo.gifter} for gifting a subscription to ${sub.user}!`);
-            await Utils.sleep(8000);
-        }
-        gitedSubQueueComplete = true;
-    }
+	if (settings.intervalMessage)
+	{
+		chatClient.say(sayChannel, settings.intervalMessage);
 
-    // TODO - Raids
+		//Timer Messages
+		setInterval(() =>
+		{
+			chatClient.say(sayChannel, settings.intervalMessage);
+		}, 900000);
+	}
+
+	let lossCount = 0;
+	let winCount = 0;
+	let tieCount = 0;
+
+	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
+	{
+		message = message.toLowerCase();
+
+		if (message.startsWith('!hue'))
+		{
+			const color = message.slice(4).trim()
+			const hueNum = Number(color)
+
+			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
+			{
+				actions.pushToQueue([{ hue: hueNum }], { user });
+				return;
+			}
+		}
+
+		//This is a debug message.
+		if (message.startsWith('!huec'))
+		{
+			const color = message.slice(5).trim()
+			const hueNum = Number(color)
+
+			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
+			{
+				actions.pushToQueue([{ light: { hue: hueNum } }], { user });
+				return;
+			}
+		}
+
+		if (settings.games)
+		{
+			if (settings.games.dice && message.startsWith("!dice")) 
+			{
+				Games.rollDice(chatClient, channel, user);
+				return;
+			}
+			if (settings.games.pingpong && message.startsWith("!ping"))
+			{
+				Games.playPingPong(chatClient, channel, user, botName);
+				return;
+			}
+			if (settings.games.score)
+			{
+				switch (message)
+				{
+					case '!score': {
+						chatClient.say(channel, `The current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!win': {
+						winCount++;
+						chatClient.say(channel, `@${creds.channel} wins :) :) :)!!! The current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!unwin': {
+						winCount--;
+						chatClient.say(channel, `Someone messed up the score counter...win removed! Updated score: ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!loss': {
+						lossCount++;
+						chatClient.say(channel, `@${creds.channel} lost :( :( :(...the current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!unloss': {
+						lossCount--;
+						chatClient.say(channel, `Someone messed up the score counter...loss removed! Updated score: ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!reset': {
+						winCount = 0;
+						lossCount = 0;
+						chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
+						return;
+					}
+				}
+			}
+		}
+
+
+		if (actions.fireEvent('chat', { name: message, user }))
+		{
+			return;
+		}
+	});
+
+	//Follower Event
+	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
+	{
+		if (!follow)
+			return;
+		actions.fireEvent('follow', { user: follow?.userDisplayName });
+	});
+
+	// Bits Event
+	await pubSubClient.onBits(userID, (message: PubSubBitsMessage) =>
+	{
+		console.log("Bits bits bits bits!!!", message.bits);
+		actions.fireEvent("bits", { number: message.bits, user: message.userName });
+	});
+
+	//Channel Points Event
+	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
+	{
+		console.log("On redemption:", JSON.stringify(message));
+		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
+	});
+
+	/////////////////////////
+	// Subscription Events
+	///////////////////////////
+	chatClient.onSub((channel: any, user: any) =>
+	{
+		actions.fireEvent("subscribe", { number: 0, user });
+	});
+	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
+	{
+		actions.fireEvent("subscribe", { number: subInfo.months, user });
+	});
+	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
+	{
+		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
+	});
+
+	//Raid Event
+	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
+	{
+		actions.fireEvent("raid", { number: raidInfo.viewerCount, user });
+	})
+
+
 }
 
 main();
