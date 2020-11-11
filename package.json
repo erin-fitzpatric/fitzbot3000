@@ -22,7 +22,8 @@
         "twitch-pubsub-client": "^4.2.0-pre.5",
         "twitch-webhooks": "^4.2.7",
         "web-audio-api": "^0.2.2",
-        "websocket": "^1.0.32"
+        "websocket": "^1.0.32",
+        "yaml": "^1.10.0"
     },
     "devDependencies": {
         "eslint": "^7.2.0",

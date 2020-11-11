@@ -118,7 +118,7 @@ async function main()
 	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
 	const pubSubClient = new PubSubClient();
 
-	let actions = new ActionQueue('./actions.json', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
 	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
 		hostName: web.hostname,

@@ -8,12 +8,35 @@ import fs from 'fs';
 import Handlebars from "handlebars";
 import say from 'say';
 
+import YAML from 'yaml';
+
 function handleImport(file: string, files: Set<string>)
 {
 	console.log(`Loading ${file}`);
-	let pojo = JSON.parse(fs.readFileSync(file, 'UTF-8'));
+	let pojo = YAML.parse(fs.readFileSync(file, 'UTF-8'));
 	files.add(file);
 	return pojo;
+}
+
+function handleImports(event: any, files: Set<string>)
+{
+	if (!("imports" in event))
+		return;
+	let importFiles = event.imports;
+	if (!(importFiles instanceof Array))
+		throw new Error("imports only works with arrays of importables");
+	
+	for (let f of importFiles)
+	{
+		let fdata = handleImport(f, files);
+		
+		//handle recursive addtional imports
+		handleImports(fdata, files);
+
+		Object.assign(event, fdata);
+	}
+
+	delete event.imports;
 }
 
 function handleActionArray(actions: Array<any>, files: Set<string>)
@@ -112,6 +135,8 @@ export class ActionQueue
 			}
 			else
 			{
+				handleImports(event, files);
+
 				//Named event or Number Event
 				for (let subActionListId in event)
 				{
