@@ -19,6 +19,7 @@ import { ActionQueue } from "./actions";
 import { getCaretPosition } from './windows';
 
 // Load in JSON files
+const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'UTF-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
 const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'UTF-8'));
@@ -117,7 +118,7 @@ async function main()
 	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
 	const pubSubClient = new PubSubClient();
 
-	let actions = new ActionQueue('./actions.json', wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	let actions = new ActionQueue('./actions.json', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
 	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
 		hostName: web.hostname,
@@ -142,18 +143,26 @@ async function main()
 	const botName = creds.botCreds.username;
 	const sayChannel = `${creds.channel.toLowerCase()}`;
 	chatClient.say(sayChannel, `${botName} is online!`);
-	//chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
 
-	// Timer Messages
-	//setInterval(() =>
-	//{
-	//	chatClient.say(sayChannel, `Try out some of ${botName}'s commands: '!lights', '!sounds', '!hue', '!games', '!effects'`);
-	//}, 900000);
+	if (settings.intervalMessage)
+	{
+		chatClient.say(sayChannel, settings.intervalMessage);
 
+		//Timer Messages
+		setInterval(() =>
+		{
+			chatClient.say(sayChannel, settings.intervalMessage);
+		}, 900000);
+	}
 
+	let lossCount = 0;
+	let winCount = 0;
+	let tieCount = 0;
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
+		message = message.toLowerCase();
+
 		if (message.startsWith('!hue'))
 		{
 			const color = message.slice(4).trim()
@@ -165,6 +174,8 @@ async function main()
 				return;
 			}
 		}
+
+		//This is a debug message.
 		if (message.startsWith('!huec'))
 		{
 			const color = message.slice(5).trim()
@@ -177,7 +188,58 @@ async function main()
 			}
 		}
 
-		if (actions.fireEvent('chat', { name: message.toLowerCase(), user }))
+		if (settings.games)
+		{
+			if (settings.games.dice && message.startsWith("!dice")) 
+			{
+				Games.rollDice(chatClient, channel, user);
+				return;
+			}
+			if (settings.games.pingpong && message.startsWith("!ping"))
+			{
+				Games.playPingPong(chatClient, channel, user, botName);
+				return;
+			}
+			if (settings.games.score)
+			{
+				switch (message)
+				{
+					case '!score': {
+						chatClient.say(channel, `The current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!win': {
+						winCount++;
+						chatClient.say(channel, `@${creds.channel} wins :) :) :)!!! The current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!unwin': {
+						winCount--;
+						chatClient.say(channel, `Someone messed up the score counter...win removed! Updated score: ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!loss': {
+						lossCount++;
+						chatClient.say(channel, `@${creds.channel} lost :( :( :(...the current score is ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!unloss': {
+						lossCount--;
+						chatClient.say(channel, `Someone messed up the score counter...loss removed! Updated score: ${winCount} - ${lossCount}`);
+						return;
+					}
+					case '!reset': {
+						winCount = 0;
+						lossCount = 0;
+						chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
+						return;
+					}
+				}
+			}
+		}
+
+
+		if (actions.fireEvent('chat', { name: message, user }))
 		{
 			return;
 		}

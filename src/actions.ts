@@ -72,7 +72,9 @@ export class ActionQueue
 	currentAction: Promise<any> | null;
 	chatFunc: any;
 	configFile: string;
+	globalsFile: string;
 	watchers: Array<fs.FSWatcher>;
+	globals: any;
 
 	reload()
 	{
@@ -80,6 +82,7 @@ export class ActionQueue
 		files = new Set<string>();
 
 		let config = handleImport(this.configFile, files);
+		this.globals = handleImport(this.globalsFile, files);
 
 		//Handle imports.
 		for (let eventId in config)
@@ -164,9 +167,11 @@ export class ActionQueue
 
 	}
 
-	constructor(configFile: string, wsServer: websocket.server, chatFunc: any)
+	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any)
 	{
 		this.configFile = configFile;
+		this.globalsFile = globalsFile;
+		this.globals = {};
 		this.watchers = [];
 		this.reload();
 
@@ -270,7 +275,7 @@ export class ActionQueue
 		this.convertOffsets(actionArray);
 		for (let action of actionArray)
 		{
-			let fullAction = { ...context, ...action };
+			let fullAction = { ...this.globals, ...context, ...action, };
 			this.queue.push(fullAction);
 		}
 
@@ -326,7 +331,7 @@ export class ActionQueue
 		}
 		if (action.say)
 		{
-			this.chatFunc(action.say);
+			this.chatFunc(Mustache.render(action.say, action));
 		}
 		if (action.speak)
 		{
@@ -337,7 +342,6 @@ export class ActionQueue
 			//Delay the queue before the next action.
 			await Utils.sleep(action.delay * 1000);
 		}
-
 
 		return true;
 	}

@@ -5,6 +5,8 @@ creds.json
 tokens.json
 web.json
 actions.json
+globals.json
+settings.json
 
 # Logs
 logs
