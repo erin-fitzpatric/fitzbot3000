@@ -302,6 +302,12 @@ export class ActionQueue
 		{
 			await Utils.sleep(action.beforeDelay * 1000);
 		}
+		if (action.scene) 
+		{
+			//Change Scene
+			Lights.setScene(action.scene);
+
+		}
 		if (action.sound)
 		{
 			//Play the sound
