@@ -168,7 +168,7 @@ async function main()
 			const color = message.slice(4).trim()
 			const hueNum = Number(color)
 
-			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
+			if (color.length > 0 && !isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
 				actions.pushToQueue([{ hue: hueNum }], { user });
 				return;
