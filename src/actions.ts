@@ -5,7 +5,7 @@ import { Utils } from './utils';
 import ChatClient from 'twitch-chat-client';
 import websocket from 'websocket';
 import fs from 'fs';
-import Mustache from 'mustache';
+import Handlebars from "handlebars";
 import say from 'say';
 
 function handleImport(file: string, files: Set<string>)
@@ -332,16 +332,16 @@ export class ActionQueue
 		if (action.notification)
 		{
 			this.wsServer.broadcast(JSON.stringify({
-				notification: Mustache.render(action.notification, action)
+				notification: Handlebars.compile(action.notification)(action)
 			}));
 		}
 		if (action.say)
 		{
-			this.chatFunc(Mustache.render(action.say, action));
+			this.chatFunc(Handlebars.compile(action.say)(action));
 		}
 		if (action.speak)
 		{
-			say.speak(Mustache.render(action.speak, action));
+			say.speak(Handlebars.compile(action.speak)(action));
 		}
 		if (action.delay)
 		{
