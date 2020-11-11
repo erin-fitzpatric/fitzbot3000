@@ -40,7 +40,12 @@ export module Effects {
 
     export async function disco(user: string) {
         console.log(`${user} played disco!`);
+        playDisco().then(() => {
+            Lights.setScene(scenes.blue);
+        })
+    }
 
+    async function playDisco () {
         let randomDiscoSound = getRandomSound("arrDisco");
         Sounds.playSound(randomDiscoSound);
         console.log("DISCO:" + randomDiscoSound);
@@ -48,8 +53,8 @@ export module Effects {
             await Lights.pickColor(discoColors[i % discoColors.length]);
             await Utils.sleep(300);
         }
-
     }
+
 
     function getRandomSound(soundLibrary: string) {
         const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'UTF-8'));

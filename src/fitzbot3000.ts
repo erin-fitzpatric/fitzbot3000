@@ -132,7 +132,7 @@ async function main() {
                     break;
                 }
                 case '!lights': {
-                    chatClient.say(channel, `You can change the lights on ${channel}'s stream! Try it out: '!red', '!purple', '!blue', or by following, subscribing, and donating bits. You can also pick a color with '!hue'.`);
+                    chatClient.say(channel, `You can change the lights on @${creds.channel}'s stream! Try it out: '!red', '!purple', '!blue', or by following, subscribing, and donating bits. You can also pick a color with '!hue'.`);
                     break;
                 }
                 case '!sounds': {
@@ -217,6 +217,39 @@ async function main() {
                     winCount = 0;
                     lossCount = 0;
                     chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
+                    break;
+                }
+                case '!social': {
+                    chatClient.say(channel, `Follow @${creds.channel} on Discord: ${creds.discord}, YouTube: ${creds.youtube}, and Twitter: ${creds.twitter}!`);
+                    break;
+                }
+                case '!youtube': {
+                    chatClient.say(channel, `Follow @${creds.channel} on YouTube: ${creds.youtube}!`);
+                    break;
+                }
+                case '!twitter': {
+                    chatClient.say(channel, `Follow @${creds.channel} on Twitter: ${creds.twitter}!`);
+                    break;
+                }
+                case '!hydrate': {
+                    chatClient.say(channel, `@${creds.channel}...hydration time! Squid1 Squid2 Squid3 Squid4`);
+                    break;
+                }
+                case '!posture': {
+                    chatClient.say(channel, `Sit up @${creds.channel}...you slouch!`);
+                    break;
+                }
+                // Age of Empires
+                case '!villager': {
+                    chatClient.say(channel, `@${creds.channel}...make villagers!!!`);
+                    break;
+                }
+                case '!shipment': {
+                    chatClient.say(channel, `@${creds.channel}...send your home city shipment!!!`);
+                    break;
+                }
+                case '!deck': {
+                    chatClient.say(channel, `https://discordapp.com/channels/534472908765134849/775022612001849455/775022763953487872`);
                     break;
                 }
             }
