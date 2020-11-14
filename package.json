@@ -18,6 +18,7 @@
         "say": "^0.16.0",
         "sound-play": "^1.0.5",
         "twitch": "^4.2.0-pre.5",
+        "twitch-api-call": "^4.2.7",
         "twitch-chat-client": "^4.2.0-pre.5",
         "twitch-pubsub-client": "^4.2.0-pre.5",
         "twitch-webhooks": "^4.2.7",

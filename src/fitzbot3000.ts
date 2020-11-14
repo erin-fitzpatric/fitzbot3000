@@ -3,6 +3,7 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
+import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
 import ChatClient, { ChatRaidInfo, ChatSubGiftInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
@@ -132,6 +133,7 @@ async function main()
 		console.log("No token!");
 		return;
 	}
+
 	let userID = (await getTokenInfo(token.accessToken)).userId;
 
 	await pubSubClient.registerUserListener(twitchClient);
@@ -155,6 +157,14 @@ async function main()
 		}, 900000);
 	}
 
+	/*let emotes = await callTwitchApi({
+		url: "/chat/emoticons",
+		type: TwitchApiCallType.Kraken,
+		method: "GET",
+	}, creds.botCreds.clientID, tokenData.accessToken);
+
+	fs.writeFileSync("./emotes.json", JSON.stringify(emotes));*/
+
 	let lossCount = 0;
 	let winCount = 0;
 	let tieCount = 0;
@@ -162,6 +172,16 @@ async function main()
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
 		message = message.toLowerCase();
+
+		console.log(msg.emoteOffsets);
+
+		let emoteOffsets = Array.from(msg.emoteOffsets, ([name, value]) => ({ name, value }));
+
+		for (let {name, value} of emoteOffsets)
+		{
+			console.log(`${name} : ${value}`);
+			wsServer.broadcast(JSON.stringify({'emote': {id: name, qty: value.length}}));
+		}
 
 		if (message.startsWith('!hue'))
 		{
