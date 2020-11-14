@@ -157,14 +157,6 @@ async function main()
 		}, 900000);
 	}
 
-	/*let emotes = await callTwitchApi({
-		url: "/chat/emoticons",
-		type: TwitchApiCallType.Kraken,
-		method: "GET",
-	}, creds.botCreds.clientID, tokenData.accessToken);
-
-	fs.writeFileSync("./emotes.json", JSON.stringify(emotes));*/
-
 	let lossCount = 0;
 	let winCount = 0;
 	let tieCount = 0;
@@ -182,6 +174,8 @@ async function main()
 			console.log(`${name} : ${value}`);
 			wsServer.broadcast(JSON.stringify({'emote': {id: name, qty: value.length}}));
 		}
+
+		wsServer.broadcast(JSON.stringify({chat: message}));
 
 		if (message.startsWith('!hue'))
 		{
