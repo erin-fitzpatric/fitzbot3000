@@ -145,9 +145,18 @@ async function main()
 		return;
 	}
 
-	let userID = (await getTokenInfo(token.accessToken)).userId;
+	let user = await twitchClient.kraken.users.getUserByName(creds.channel);
 
-	await pubSubClient.registerUserListener(twitchClient);
+	if (!user)
+	{
+		console.log("Channel User Not Found");
+		return;
+	}
+
+	//let userID = (await getTokenInfo(token.accessToken)).userId;
+	let userID = user.id;
+
+	await pubSubClient.registerUserListener(twitchClient, userID);
 
 	// Connect to Twitch
 	await chatClient.connect();
@@ -274,6 +283,7 @@ async function main()
 	//Follower Event
 	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
 	{
+		console.log("Follow");
 		if (!follow)
 			return;
 

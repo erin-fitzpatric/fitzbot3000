@@ -2,7 +2,7 @@ import axios from 'axios';
 import fs from 'fs';
 
 
-const groupNumber = '1';
+const groupNumber = '2';
 
 // Load in creds JSON file
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));

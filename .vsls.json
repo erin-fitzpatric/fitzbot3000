@@ -1,0 +1,7 @@
+{
+    "excludeFiles": [
+		"!/actions.json",
+		"node_modules"
+    ],
+    "gitignore": "none"
+}
