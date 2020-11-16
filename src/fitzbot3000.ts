@@ -5,7 +5,7 @@ import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
 import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
-import ChatClient, { ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
+import ChatClient, { ChatCommunitySubInfo, ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
@@ -269,11 +269,19 @@ async function main()
 
 	logger.info("Started");
 
+	let followerCache = new Set<String>();
+	
 	//Follower Event
 	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
 	{
 		if (!follow)
 			return;
+
+		if (followerCache.has(follow.userId))
+			return;
+
+		followerCache.add(follow.userId);
+		
 		logger.info(`followed by ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
 	});
@@ -311,6 +319,11 @@ async function main()
 		logger.info(`resub: ${user}`);
 		actions.fireEvent("subscribe", { number: subInfo.months, user, prime: subInfo.isPrime });
 	});
+	/*chatClient.onCommunitySub((channel: string, user: string, subInfo: ChatCommunitySubInfo) => 
+	{
+		logger.info(`community sub ${user}`);
+		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.count });
+	});*/
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
 		logger.info(`subgift: ${user}`);
