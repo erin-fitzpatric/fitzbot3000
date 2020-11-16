@@ -5,6 +5,7 @@ creds.json
 tokens.json
 web.json
 actions.json
+actions.yaml
 globals.json
 settings.json
 

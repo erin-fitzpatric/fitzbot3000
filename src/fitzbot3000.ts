@@ -3,8 +3,9 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
+import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
-import ChatClient, { ChatRaidInfo, ChatSubGiftInfo } from 'twitch-chat-client';
+import ChatClient, { ChatCommunitySubInfo, ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
@@ -15,6 +16,9 @@ import { Effects } from './effects';
 import { Utils } from './utils';
 import websocket from 'websocket';
 import { ActionQueue } from "./actions";
+import PayPalIPN from './paypal';
+import bodyParser from 'body-parser';
+import logger from './logger';
 
 import { getCaretPosition } from './windows';
 
@@ -28,18 +32,24 @@ https.globalAgent.options.rejectUnauthorized = false;
 
 let authDataPromiseResolver: (para: any) => void;
 
-const port = 6767;
-
 // start server
 let app = express();
 
+let paypal = new PayPalIPN();
+// Parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// Parse application/json
+app.use(bodyParser.json());
+app.use(express.json());
+
 let server = http.createServer(app);
-server.listen(web.port, () =>
+server.listen(80, () =>
 {
 	// sign in with twitch
 	app.get("/auth/twitch", (req, res, next) =>
 	{
-		let redirect_uri = `http://localhost:${port}/auth/signin-twitch`;
+		let redirect_uri = `http://localhost/auth/signin-twitch`;
 		res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
 		return next();
 	})
@@ -57,6 +67,8 @@ server.listen(web.port, () =>
 		authDataPromiseResolver(authData);
 	})
 
+	app.post('/ipn', paypal.getMiddleware());
+
 	app.use(express.static("./public"));
 });
 
@@ -68,13 +80,11 @@ let wsServer = new websocket.server({
 wsServer.on('request', function (request)
 {
 	var connection = request.accept('echo-protocol', request.origin);
-	console.log((new Date()) + ' Connection accepted.');
 	connection.on('message', function (message: websocket.IMessage)
 	{
 	});
 	connection.on('close', function (reasonCode, description)
 	{
-		console.log((new Date()) + ' Peer ' + connection.remoteAddress + ' disconnected.');
 	});
 });
 
@@ -96,7 +106,7 @@ async function main()
 		SignOn.saveAuthData(authData);
 		tokenData = authData;
 
-		console.log("Successfully got signin callback.");
+		logger.info("Successfully got signin callback.");
 	}
 
 	const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes.scopes), {
@@ -118,7 +128,7 @@ async function main()
 	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
 	const pubSubClient = new PubSubClient();
 
-	let actions = new ActionQueue('./actions.json', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
 	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
 		hostName: web.hostname,
@@ -129,7 +139,7 @@ async function main()
 	const token = await twitchClient.getAccessToken();
 	if (!token)
 	{
-		console.log("No token!");
+		logger.error("No token!");
 		return;
 	}
 
@@ -172,6 +182,15 @@ async function main()
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
 		message = message.toLowerCase();
+
+		let emoteOffsets = Array.from(msg.emoteOffsets, ([name, value]) => ({ name, value }));
+
+		for (let { name, value } of emoteOffsets)
+		{
+			wsServer.broadcast(JSON.stringify({ 'emote': { id: name, qty: value.length } }));
+		}
+
+		wsServer.broadcast(JSON.stringify({ chat: message }));
 
 		if (message.startsWith('!hue'))
 		{
@@ -255,52 +274,83 @@ async function main()
 		}
 	});
 
+	logger.info("Started");
+
+	let followerCache = new Set<String>();
+	
 	//Follower Event
 	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
 	{
 		console.log("Follow");
 		if (!follow)
 			return;
+
+		if (followerCache.has(follow.userId))
+			return;
+
+		followerCache.add(follow.userId);
+		
+		logger.info(`followed by ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
 	});
 
 	// Bits Event
 	await pubSubClient.onBits(userID, (message: PubSubBitsMessage) =>
 	{
-		console.log("Bits bits bits bits!!!", message.bits);
+		logger.info(`Bits: ${message.bits}`);
 		actions.fireEvent("bits", { number: message.bits, user: message.userName });
 	});
 
 	//Channel Points Event
 	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
 	{
-		console.log("On redemption:", JSON.stringify(message));
+		logger.info(`Redemption: ${message.rewardId} ${message.rewardName}`);
 		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
 	/////////////////////////
 	// Subscription Events
 	///////////////////////////
-	chatClient.onSub((channel: any, user: any) =>
+
+	chatClient.onSub((channel: any, user: any, subInfo: ChatSubInfo) =>
 	{
-		actions.fireEvent("subscribe", { number: 0, user });
+		logger.info(`subscribed: ${user} prime: ${subInfo.isPrime}`);
+		actions.fireEvent("subscribe", { number: 0, user, prime: subInfo.isPrime });
 	});
-	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
+	chatClient.onSubExtend((channel: string, user: string, subInfo: ChatSubExtendInfo) => 
 	{
+		logger.info(`subextend: ${user}`);
 		actions.fireEvent("subscribe", { number: subInfo.months, user });
 	});
+	chatClient.onResub((channel: any, user: any, subInfo: ChatSubInfo) =>
+	{
+		logger.info(`resub: ${user}`);
+		actions.fireEvent("subscribe", { number: subInfo.months, user, prime: subInfo.isPrime });
+	});
+	/*chatClient.onCommunitySub((channel: string, user: string, subInfo: ChatCommunitySubInfo) => 
+	{
+		logger.info(`community sub ${user}`);
+		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.count });
+	});*/
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
+		logger.info(`subgift: ${user}`);
 		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
 	});
 
 	//Raid Event
 	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
 	{
-		console.log("Raid!");
+		logger.info(`raided by: ${user}`);
 		actions.fireEvent("raid", { number: raidInfo.viewerCount, user });
 	})
 
+	//Paypal
+	paypal.on('payment', (data: any) =>
+	{
+		logger.info(`paypal ${data.amount} ${data.message}`);
+		actions.fireEvent("paypal", { number: data.amount, message: data.message, currency: data.currency });
+	});
 
 }
 
