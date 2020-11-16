@@ -288,7 +288,7 @@ async function main()
 	//Channel Points Event
 	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
 	{
-		logger.info(`Bits: ${message.rewardId} ${message.rewardName}`);
+		logger.info(`Redemption: ${message.rewardId} ${message.rewardName}`);
 		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
@@ -303,7 +303,7 @@ async function main()
 	});
 	chatClient.onSubExtend((channel: string, user: string, subInfo: ChatSubExtendInfo) => 
 	{
-		logger.info(`subExtend: ${user}`);
+		logger.info(`subextend: ${user}`);
 		actions.fireEvent("subscribe", { number: subInfo.months, user });
 	});
 	chatClient.onResub((channel: any, user: any, subInfo: ChatSubInfo) =>
