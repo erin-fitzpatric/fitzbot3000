@@ -37,7 +37,6 @@ const port = 6767;
 let app = express();
 
 let paypal = new PayPalIPN();
-
 // Parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }));
 
@@ -317,8 +316,9 @@ async function main()
 	})
 
 	//Paypal
-	paypal.on('payment', (data: any) => {
-		actions.fireEvent("paypal", { number: data.amount, message: data.message, currency: data.currency});
+	paypal.on('payment', (data: any) =>
+	{
+		actions.fireEvent("paypal", { number: data.amount, message: data.message, currency: data.currency });
 	});
 
 }
