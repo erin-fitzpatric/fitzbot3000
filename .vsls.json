@@ -1,0 +1,6 @@
+{
+    "excludeFiles": [
+        "!/actions.json"
+    ],
+    "gitignore": "none"
+}
