@@ -32,8 +32,6 @@ https.globalAgent.options.rejectUnauthorized = false;
 
 let authDataPromiseResolver: (para: any) => void;
 
-const port = 6767;
-
 // start server
 let app = express();
 
@@ -46,12 +44,12 @@ app.use(bodyParser.json());
 app.use(express.json());
 
 let server = http.createServer(app);
-server.listen(web.port, () =>
+server.listen(80, () =>
 {
 	// sign in with twitch
 	app.get("/auth/twitch", (req, res, next) =>
 	{
-		let redirect_uri = `http://localhost:${port}/auth/signin-twitch`;
+		let redirect_uri = `http://localhost/auth/signin-twitch`;
 		res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
 		return next();
 	})
