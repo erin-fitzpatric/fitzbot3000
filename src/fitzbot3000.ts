@@ -5,7 +5,7 @@ import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
 import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
-import ChatClient, { ChatRaidInfo, ChatSubGiftInfo } from 'twitch-chat-client';
+import ChatClient, { ChatRaidInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
@@ -16,6 +16,8 @@ import { Effects } from './effects';
 import { Utils } from './utils';
 import websocket from 'websocket';
 import { ActionQueue } from "./actions";
+import PayPalIPN from './paypal';
+import bodyParser from 'body-parser';
 
 import { getCaretPosition } from './windows';
 
@@ -33,6 +35,15 @@ const port = 6767;
 
 // start server
 let app = express();
+
+let paypal = new PayPalIPN();
+
+// Parse application/x-www-form-urlencoded
+app.use(bodyParser.urlencoded({ extended: false }));
+
+// Parse application/json
+app.use(bodyParser.json());
+app.use(express.json());
 
 let server = http.createServer(app);
 server.listen(web.port, () =>
@@ -57,6 +68,8 @@ server.listen(web.port, () =>
 		let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
 		authDataPromiseResolver(authData);
 	})
+
+	app.post('/ipn', paypal.getMiddleware());
 
 	app.use(express.static("./public"));
 });
@@ -169,13 +182,13 @@ async function main()
 
 		let emoteOffsets = Array.from(msg.emoteOffsets, ([name, value]) => ({ name, value }));
 
-		for (let {name, value} of emoteOffsets)
+		for (let { name, value } of emoteOffsets)
 		{
 			console.log(`${name} : ${value}`);
-			wsServer.broadcast(JSON.stringify({'emote': {id: name, qty: value.length}}));
+			wsServer.broadcast(JSON.stringify({ 'emote': { id: name, qty: value.length } }));
 		}
 
-		wsServer.broadcast(JSON.stringify({chat: message}));
+		wsServer.broadcast(JSON.stringify({ chat: message }));
 
 		if (message.startsWith('!hue'))
 		{
@@ -284,13 +297,13 @@ async function main()
 	/////////////////////////
 	// Subscription Events
 	///////////////////////////
-	chatClient.onSub((channel: any, user: any) =>
+	chatClient.onSub((channel: any, user: any, subInfo: ChatSubInfo) =>
 	{
-		actions.fireEvent("subscribe", { number: 0, user });
+		actions.fireEvent("subscribe", { number: 0, user, prime: subInfo.isPrime });
 	});
-	chatClient.onResub((channel: any, user: any, subInfo: { months: any; }) =>
+	chatClient.onResub((channel: any, user: any, subInfo: ChatSubInfo) =>
 	{
-		actions.fireEvent("subscribe", { number: subInfo.months, user });
+		actions.fireEvent("subscribe", { number: subInfo.months, user, prime: subInfo.isPrime });
 	});
 	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
 	{
@@ -303,6 +316,10 @@ async function main()
 		actions.fireEvent("raid", { number: raidInfo.viewerCount, user });
 	})
 
+	//Paypal
+	paypal.on('payment', (data: any) => {
+		actions.fireEvent("paypal", { number: data.amount, message: data.message, currency: data.currency});
+	});
 
 }
 

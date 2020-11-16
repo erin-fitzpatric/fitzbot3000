@@ -7,7 +7,7 @@
 	<script>
 		function connect(spawnImageFunc)
 		{
-			var socket = new WebSocket("ws://127.0.0.1:6767");
+			var socket = new WebSocket("ws://127.0.0.1");
 
 			let unicodeRegExp = new RegExp(joypixels.escapeRegExp(joypixels.unicodeCharRegex()), 'gi');
 	
