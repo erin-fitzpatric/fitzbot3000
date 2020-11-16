@@ -24,6 +24,7 @@
         "twitch-webhooks": "^4.2.7",
         "web-audio-api": "^0.2.2",
         "websocket": "^1.0.32",
+        "winston": "^3.3.3",
         "yaml": "^1.10.0"
     },
     "devDependencies": {
