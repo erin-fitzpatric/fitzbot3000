@@ -11,8 +11,6 @@ export default class PayPalIPN extends EventEmitter
 			//Respond with 200
 			res.send();
 
-			console.log(req.body);
-
 			let resp = await axios.post('https://www.paypal.com/cgi-bin/webscr', null, {
 				params: {
 					cmd: '_notify-validate',

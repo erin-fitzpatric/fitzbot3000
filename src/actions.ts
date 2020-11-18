@@ -7,8 +7,9 @@ import websocket from 'websocket';
 import fs from 'fs';
 import Handlebars from "handlebars";
 import say from 'say';
-
+import logger from './logger'
 import YAML from 'yaml';
+import { Mutex } from 'async-mutex';
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -25,11 +26,11 @@ function handleImports(event: any, files: Set<string>)
 	let importFiles = event.imports;
 	if (!(importFiles instanceof Array))
 		throw new Error("imports only works with arrays of importables");
-	
+
 	for (let f of importFiles)
 	{
 		let fdata = handleImport(f, files);
-		
+
 		//handle recursive addtional imports
 		handleImports(fdata, files);
 
@@ -98,6 +99,7 @@ export class ActionQueue
 	globalsFile: string;
 	watchers: Array<fs.FSWatcher>;
 	globals: any;
+	queueMutex: Mutex;
 
 	reload()
 	{
@@ -199,6 +201,7 @@ export class ActionQueue
 		this.globals = {};
 		this.watchers = [];
 		this.reload();
+		this.queueMutex = new Mutex();
 
 		this.chatFunc = chatFunc;
 		this.queue = [];
@@ -211,10 +214,14 @@ export class ActionQueue
 		let event = this.events[name];
 
 		if (!event)
+		{
+			logger.error(`Unknown event ${name}`);
 			return false;
+		}
 
 		if (options.number)
 		{
+			logger.info(`Fired ${name} : ${options.number}`)
 			//Handle a numberlike event action
 			let selected = null;
 			for (let key in event)
@@ -233,6 +240,7 @@ export class ActionQueue
 		}
 		else if (options.name)
 		{
+			logger.info(`Fired ${name} : ${options.name}`)
 			//Handle a namelike event
 			let namedEvent = event[options.name];
 			if (namedEvent)
@@ -243,21 +251,27 @@ export class ActionQueue
 		}
 		if (event instanceof Array)
 		{
+			logger.info(`Fired ${name}`)
 			this.pushToQueue(event, options);
 			return true;
 		}
 
+		logger.error(`Event failed to fire ${name}: ${options}`)
+
 		return false;
 	}
 
-	runNext()
+	async runNext()
 	{
 		if (this.queue.length > 0)
 		{
+			logger.info("Continuing Chain");
+			let release = await this.queueMutex.acquire();
 			let front = this.queue.shift();
 			let frontPromise = this.runAction(front);
 			this.currentAction = frontPromise;
 			this.currentAction.then(() => this.runNext());
+			release();
 		}
 		else
 		{
@@ -265,7 +279,7 @@ export class ActionQueue
 		}
 	}
 
-	runStartOfQueue()
+	async runStartOfQueue()
 	{
 		if (this.currentAction)
 			return;
@@ -273,14 +287,17 @@ export class ActionQueue
 		if (this.queue.length == 0)
 			return;
 
+		logger.info("Starting new chain");
+		let release = await this.queueMutex.acquire();
 		let front = this.queue.shift();
 		let frontPromise = this.runAction(front);
 		this.currentAction = frontPromise;
 		this.currentAction.then(() => this.runNext());
+		release();
 	}
 
 
-	pushToQueue(actions: any, context: any)
+	async pushToQueue(actions: any, context: any)
 	{
 		let actionArray = null;
 		if (actions instanceof Array)
@@ -294,15 +311,19 @@ export class ActionQueue
 
 		if (!(actionArray instanceof Array))
 		{
+			logger.error("Action Array wasn't an array. Aborting");
 			return;
 		}
 
 		this.convertOffsets(actionArray);
+
+		let release = await this.queueMutex.acquire();
 		for (let action of actionArray)
 		{
 			let fullAction = { ...this.globals, ...context, ...action, };
 			this.queue.push(fullAction);
 		}
+		release();
 
 		this.runStartOfQueue();
 	}
@@ -330,43 +351,98 @@ export class ActionQueue
 		if (action.scene) 
 		{
 			//Change Scene
-			Lights.setScene(action.scene);
-
+			try
+			{
+				Lights.setScene(action.scene);
+			}
+			catch (err)
+			{
+				logger.error(`Error Setting Scene: ${action.scene}`)
+			}
 		}
 		if (action.sound)
 		{
 			//Play the sound
-			Sounds.playSound(action.sound);
+			try 
+			{
+				Sounds.playSound(action.sound);
+			}
+			catch (err)
+			{
+				logger.error(`Error Playing Sound: ${action.sound}`)
+			}
 		}
 		if (action.light)
 		{
-			//Change the lights
-			Lights.pickColor((action.light.hue / 360) * 65535, action.light.bri, action.light.sat, action.light.on);
+			try
+			{
+				//Change the lights
+				Lights.pickColor((action.light.hue / 360) * 65535, action.light.bri, action.light.sat, action.light.on);
+			}
+			catch (err)
+			{
+				logger.error(`Error doing Lights: ${action.light}`)
+			}
 		}
 		if ("hue" in action)
 		{
 			//Change the lights through hue setting
-			Lights.pickColor((action.hue / 1000) * 65535);
-			this.wsServer.broadcast(JSON.stringify({ hue: action.hue / 1000 }));
+			try
+			{
+				Lights.pickColor((action.hue / 1000) * 65535);
+				this.wsServer.broadcast(JSON.stringify({ hue: action.hue / 1000 }));
+			}
+			catch (err)
+			{
+				logger.error(`Error running hue: ${action.hue}`)
+			}
 		}
 		if (action.websocket)
 		{
 			//Broadcast the websocket text
-			this.wsServer.broadcast(action.websocket);
+			try
+			{
+				this.wsServer.broadcast(action.websocket);
+			}
+			catch (err)
+			{
+				logger.error(`Error broadcasting: ${action.websocket}`)
+			}
 		}
 		if (action.notification)
 		{
-			this.wsServer.broadcast(JSON.stringify({
-				notification: Handlebars.compile(action.notification)(action)
-			}));
+			try
+			{
+				this.wsServer.broadcast(JSON.stringify({
+					notification: Handlebars.compile(action.notification)(action)
+				}));
+			}
+			catch (err)
+			{
+				logger.error(`Error notifying: ${action.notification}`)
+			}
 		}
 		if (action.say)
 		{
-			this.chatFunc(Handlebars.compile(action.say)(action));
+			try
+			{
+				this.chatFunc(Handlebars.compile(action.say)(action));
+			}
+			catch (err)
+			{
+				logger.error(`Error chatting: ${action.say}`)
+			}
 		}
 		if (action.speak)
 		{
-			say.speak(Handlebars.compile(action.speak)(action));
+			try
+			{
+				say.speak(Handlebars.compile(action.speak)(action));
+			}
+			catch (err)
+			{
+				logger.error(`Error speaking: ${action.speak}`)
+			}
 		}
 		if (action.delay)
 		{

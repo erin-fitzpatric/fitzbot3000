@@ -1,8 +1,8 @@
 import axios from 'axios';
 import fs from 'fs';
 
-
-const groupNumber = '2';
+const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
+const groupNumber = settings.lightGroup || 2;
 
 // Load in creds JSON file
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
