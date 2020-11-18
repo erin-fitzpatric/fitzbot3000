@@ -147,7 +147,7 @@ async function main()
 
 	if (!user)
 	{
-		console.log("Channel User Not Found");
+		logger.error("Channel User Not Found");
 		return;
 	}
 
@@ -281,7 +281,6 @@ async function main()
 	//Follower Event
 	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
 	{
-		console.log("Follow");
 		if (!follow)
 			return;
 

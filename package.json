@@ -8,6 +8,7 @@
         "@types/ffi-napi": "^2.4.3",
         "@types/mustache": "^4.0.1",
         "@types/websocket": "^1.0.1",
+        "async-mutex": "^0.2.4",
         "axios": "^0.19.2",
         "express": "^4.17.1",
         "ffi-napi": "^3.0.1",
