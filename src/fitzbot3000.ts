@@ -151,9 +151,9 @@ async function main()
 		return;
 	}
 
-	//let userID = (await getTokenInfo(token.accessToken)).userId;
-	let userID = user.id;
-
+	let userID = user.id; //Streamer ID
+	let botID = (await getTokenInfo(token.accessToken)).userId;
+	
 	await pubSubClient.registerUserListener(twitchClient, userID);
 
 	// Connect to Twitch
