@@ -3,24 +3,17 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
-import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
 import ChatClient, { ChatCommunitySubInfo, ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
-import { Lights } from "./lights";
-import { Sounds } from "./sounds";
 import { Games } from "./games";
-import { Effects } from './effects';
-import { Utils } from './utils';
 import websocket from 'websocket';
 import { ActionQueue } from "./actions";
 import PayPalIPN from './paypal';
 import bodyParser from 'body-parser';
 import logger from './logger';
-
-import { getCaretPosition } from './windows';
 
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
