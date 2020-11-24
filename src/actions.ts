@@ -15,7 +15,7 @@ import youtube from './youtube';
 function handleImport(file: string, files: Set<string>)
 {
 	console.log(`Loading ${file}`);
-	let pojo = YAML.parse(fs.readFileSync(file, 'UTF-8'));
+	let pojo = YAML.parse(fs.readFileSync(file, 'utf-8'));
 	files.add(file);
 	return pojo;
 }
@@ -257,7 +257,10 @@ export class ActionQueue
 			return true;
 		}
 
-		logger.error(`Event failed to fire ${name}: ${options}`)
+		if (name != "chat")
+		{
+			logger.error(`Event failed to fire ${name}: ${options}`)
+		}
 
 		return false;
 	}

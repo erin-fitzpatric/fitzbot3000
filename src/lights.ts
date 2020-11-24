@@ -1,18 +1,18 @@
 import axios from 'axios';
 import fs from 'fs';
 
-const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
+const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const groupNumber = settings.lightGroup || 2;
 
 // Load in creds JSON file
-const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
+const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
 
 export module Lights
 {
 	// // Get current light
 	// export function async getDefaultLighting() {
 	//     axios
-	//     .put(`${creds.baseURL}/groups/2/action`, {
+	//     .put(`${creds.hueUrl}/groups/2/action`, {
 	//         on: true,
 	//     })
 	//     .then(function(response: any) {
@@ -27,7 +27,7 @@ export module Lights
 	export function lightsOn()
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				on: true,
 			})
 			.then(function (response: any)
@@ -43,7 +43,7 @@ export module Lights
 	export function lightsOff()
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				on: false,
 			})
 			.then(function (response: any)
@@ -59,7 +59,7 @@ export module Lights
 	export function setScene(sceneID: string)
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				scene: sceneID,
 			})
 			.catch(function (error: any)
@@ -85,7 +85,7 @@ export module Lights
 			let y = (Math.sin(colorSpin) + 1) / 2;
 
 			const response = await axios.put(
-				`${creds.baseURL}/groups/${groupNumber}/action`, {
+				`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				xy: [x, y]
 			}, { timeout: 100 },
 			)
@@ -101,7 +101,7 @@ export module Lights
 		try
 		{
 			const response = await axios.put(
-				`${creds.baseURL}/groups/${groupNumber}/action`, {
+				`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				hue: Math.round(hue),
 				...bri != undefined ? { bri: Math.round(bri) } : {},
 				...sat != undefined ? { sat: Math.round(sat) } : {},
