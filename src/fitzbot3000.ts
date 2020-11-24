@@ -26,19 +26,22 @@ let authDataPromiseResolver: (para: any) => void;
 // start server
 let app = express();
 
-let paypal = new PayPalIPN();
+let routes = express.Router();
+
+
+
 // Parse application/x-www-form-urlencoded
-app.use(bodyParser.urlencoded({ extended: false }));
+routes.use(bodyParser.urlencoded({ extended: false }));
 
 // Parse application/json
-app.use(bodyParser.json());
-app.use(express.json());
+routes.use(bodyParser.json());
+routes.use(express.json());
+
+
 
 let server = http.createServer(app);
 server.listen(web.port, () =>
 {
-	app.post('/ipn', paypal.getMiddleware());
-
 	app.use(express.static("./public"));
 });
 
@@ -106,6 +109,20 @@ async function main()
 
 	let lossCount = 0;
 	let winCount = 0;
+
+	//Finish Setting up the web server
+	const webhooks = new WebHookListener(channelTwitchClient, new SimpleAdapter({
+		hostName: web.hostname,
+		listenerPort: web.port
+	}));
+
+	webhooks.applyMiddleware(app);
+
+	let paypal = new PayPalIPN();
+	routes.post('/ipn', paypal.getMiddleware());
+	//Use the router here so that the webhook middleware runs first before any of our other middleware.
+	app.use(routes);
+
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
@@ -207,11 +224,6 @@ async function main()
 	let followerCache = new Set<String>();
 	
 	//Follower Event
-	const webhooks = new WebHookListener(channelTwitchClient, new SimpleAdapter({
-		hostName: web.hostname,
-		listenerPort: web.port
-	}));
-	
 	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>
 	{
 		if (!follow)
@@ -225,8 +237,6 @@ async function main()
 		logger.info(`followed by ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
 	});
-
-	webhooks.applyMiddleware(app);
 
 	// Bits Event
 	await pubSubClient.onBits(channelId, (message: PubSubBitsMessage) =>
