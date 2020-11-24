@@ -5,7 +5,8 @@ import logger from './logger';
 import { AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import express from 'express';
 
-export interface AccessTokenData
+//We have to redefine this since twitch-auth doesn't export it.
+interface AccessTokenData
 {
 	access_token: string;
 	refresh_token: string;
