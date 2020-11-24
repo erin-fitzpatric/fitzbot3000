@@ -35,7 +35,7 @@ app.use(bodyParser.json());
 app.use(express.json());
 
 let server = http.createServer(app);
-server.listen(80, () =>
+server.listen(web.port, () =>
 {
 	app.post('/ipn', paypal.getMiddleware());
 
@@ -209,7 +209,7 @@ async function main()
 	//Follower Event
 	const webhooks = new WebHookListener(channelTwitchClient, new SimpleAdapter({
 		hostName: web.hostname,
-		listenerPort: 80
+		listenerPort: web.port
 	}));
 	
 	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>

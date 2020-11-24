@@ -6,4 +6,8 @@
 	"bot": "Bot Account's Name",
 	"channel": "Streamer Channel Account Name",
 	"hueUrl": "https://<hue bridge ip addres>/api/<authorized user id> see Hue Documentation: https://developers.meethue.com/develop/get-started-2/"
+	"youtube": {
+		"channelID": "Your Youtube Channel ID"
+		"apiKey": "Your google api key with youtube enabled."
+	}
 }

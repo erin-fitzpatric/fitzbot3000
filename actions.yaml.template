@@ -1,0 +1,35 @@
+#For follow events
+follow:
+  import: "./effects/zelda.yaml" #Imports a different yaml file as an array of actions
+#For chat commands
+#IMPORTANT: Only use lowercase in command names.
+chat:
+  "!playsound":
+    - sound: "/sounds/sound.mp3"
+  "!secret":
+    - sound: "/sounds/secret.mp3"
+  imports: #Imports other commands from a yaml file
+    - "./effects/morecommands.yaml"
+#Subscription Events
+subscribe:
+  "0": #Gets triggered for the first sub of a user
+    - import: "./effects/sub.yaml"
+    - notification: Everybody thank {{user}} for subscribing!
+  "1": #Gets triggered for any sub that has months >= 1
+    - import: "./effects/sub.yaml"
+    - notification: Thanks to {{user}} for subscribing to the channel for a total of {{number}} months!
+  gift: #Triggers for gifted subs
+    - import: "./effects/recorderfox.yaml"
+    - notification: "{{gifter} gave {{user}} a subscription!"
+bits:
+  "0": [] #Triggers for [0-99] bits
+  "100": [] #Triggers for over 100 bits (This is customizable just use numbers as key values)
+redemption:
+  award: [] #This gets triggered when a channel reward called 'award' is redeemed. Again... customziable
+raid:
+  "0": #Triggered for raids over over 0 people... so everyone.
+    - import: "./effects/raid.yaml"
+paypal:
+  "0": #Triggered paypal donations.
+    - sound: "/sounds/woo.mp3"
+    - notification: "Donation {{ number }} {{ message }}"
