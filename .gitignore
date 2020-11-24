@@ -2,7 +2,8 @@
 /Sounds
 /effects
 creds.json
-tokens.json
+botTokens.json
+channelTokens.json
 web.json
 actions.json
 actions.yaml

@@ -12,7 +12,7 @@ export module Lights
 	// // Get current light
 	// export function async getDefaultLighting() {
 	//     axios
-	//     .put(`${creds.baseURL}/groups/2/action`, {
+	//     .put(`${creds.hueUrl}/groups/2/action`, {
 	//         on: true,
 	//     })
 	//     .then(function(response: any) {
@@ -27,7 +27,7 @@ export module Lights
 	export function lightsOn()
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				on: true,
 			})
 			.then(function (response: any)
@@ -43,7 +43,7 @@ export module Lights
 	export function lightsOff()
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				on: false,
 			})
 			.then(function (response: any)
@@ -59,7 +59,7 @@ export module Lights
 	export function setScene(sceneID: string)
 	{
 		axios
-			.put(`${creds.baseURL}/groups/${groupNumber}/action`, {
+			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				scene: sceneID,
 			})
 			.then(function (response: any)
@@ -89,7 +89,7 @@ export module Lights
 			let y = (Math.sin(colorSpin) + 1) / 2;
 
 			const response = await axios.put(
-				`${creds.baseURL}/groups/${groupNumber}/action`, {
+				`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				xy: [x, y]
 			}, { timeout: 100 },
 			)
@@ -105,7 +105,7 @@ export module Lights
 		try
 		{
 			const response = await axios.put(
-				`${creds.baseURL}/groups/${groupNumber}/action`, {
+				`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				hue: Math.round(hue),
 				...bri != undefined ? { bri: Math.round(bri) } : {},
 				...sat != undefined ? { sat: Math.round(sat) } : {},

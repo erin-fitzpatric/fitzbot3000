@@ -3,10 +3,9 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
-import { SignOn } from './signOn';
-import ChatClient, { ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
-import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
-import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
+import { AuthManager } from './signOn';
+import ChatClient, { ChatRaidInfo } from 'twitch-chat-client';
+import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage, PubSubSubscriptionMessage } from 'twitch-pubsub-client';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
 import { Games } from "./games";
 import websocket from 'websocket';
@@ -20,7 +19,6 @@ import logger from './logger';
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
-const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'utf-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -40,27 +38,6 @@ app.use(express.json());
 let server = http.createServer(app);
 server.listen(80, () =>
 {
-	// sign in with twitch
-	app.get("/auth/twitch", (req, res, next) =>
-	{
-		let redirect_uri = `http://localhost/auth/signin-twitch`;
-		res.redirect(`https://id.twitch.tv/oauth2/authorize?response_type=code&client_id=${creds.botCreds.clientID}&redirect_uri=${redirect_uri}&scope=${scopes.scopes.join('+')}`);
-		return next();
-	})
-	// redirect from twitch
-	app.get("/auth/signin-twitch", async (req) =>
-	{
-		if (!req.query.code)
-		{
-			let error = req.query.error;
-			let errorMsg = req.query.error_description;
-			console.error("Auth Error", error, errorMsg);
-			throw new Error(`Error: ${error}: ${errorMsg}`);
-		}
-		let authData = await SignOn.getTokenFromAccessCode(req.query.code as string);
-		authDataPromiseResolver(authData);
-	})
-
 	app.post('/ipn', paypal.getMiddleware());
 
 	app.use(express.static("./public"));
@@ -84,75 +61,36 @@ wsServer.on('request', function (request)
 
 async function main()
 {
-	// Get credentials
-	let tokenData = SignOn.getAuthData();
+	let channelAuth = new AuthManager('channel');
+	channelAuth.installMiddleware(app);
+	await channelAuth.doAuth();
 
-	// get tokens if missing
-	if (!tokenData.access_token || !tokenData.refresh_token) 
+	const channelTwitchClient = new ApiClient({ authProvider: channelAuth.createAuthProvider() });
+	let botTwitchClient = channelTwitchClient;
+
+	if (creds.bot != creds.channel)
 	{
-		//Wait here for signin to complete.
-		let authPromise = new Promise((resolve) =>
-		{
-			authDataPromiseResolver = resolve;
-		});
+		let botAuth = new AuthManager('bot');
+		botAuth.installMiddleware(app);
+		await botAuth.doAuth();
 
-		let authData = await authPromise;
-		SignOn.saveAuthData(authData);
-		tokenData = authData;
-
-		logger.info("Successfully got signin callback.");
+		botTwitchClient = new ApiClient({ authProvider: botAuth.createAuthProvider() });
 	}
-
-	const authProvider = new RefreshableAuthProvider(new StaticAuthProvider(creds.botCreds.clientID, tokenData.access_token, scopes.scopes), {
-		clientSecret: creds.botCreds.secret,
-		refreshToken: tokenData.refresh_token,
-		expiry: tokenData.expiryTimestamp === null ? null : new Date(tokenData.expiryTimestamp),
-		onRefresh: async (tokenData: AccessToken) =>
-		{
-			const newTokenData = {
-				access_token: tokenData.accessToken,
-				refresh_token: tokenData.refreshToken,
-				expiryTimestamp: tokenData.expiryDate === null ? null : tokenData.expiryDate.getTime()
-			};
-			SignOn.saveAuthData(newTokenData);
-		}
-	});
-
-	const twitchClient = new ApiClient({ authProvider });
-	const chatClient = ChatClient.forTwitchClient(twitchClient, { channels: [creds.channel] });
-	const pubSubClient = new PubSubClient();
 
 	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
 
-	const webhooks = new WebHookListener(twitchClient, new SimpleAdapter({
-		hostName: web.hostname,
-		listenerPort: web.hookPort
-	}));
-	await webhooks.listen();
+	let channelId = await (await channelTwitchClient.kraken.users.getMe()).id;
+	let botId = await (await botTwitchClient.kraken.users.getMe()).id;
 
-	const token = await twitchClient.getAccessToken();
-	if (!token)
-	{
-		logger.error("No token!");
-		return;
-	}
+	const pubSubClient = new PubSubClient();
+	await pubSubClient.registerUserListener(channelTwitchClient, channelId);
 
-	let user = await twitchClient.kraken.users.getUserByName(creds.channel);
-
-	if (!user)
-	{
-		logger.error("Channel User Not Found");
-		return;
-	}
-
-	let userID = user.id; //Streamer ID
-	await pubSubClient.registerUserListener(twitchClient, userID);
-
-	// Connect to Twitch
+	// Connect to Twitch Chat with Bot Account
+	const chatClient = new ChatClient(botTwitchClient, { channels: [creds.channel] });
 	await chatClient.connect();
 
 	// On Init
-	const botName = creds.botCreds.username;
+	const botName = creds.bot;
 	const sayChannel = `${creds.channel.toLowerCase()}`;
 	chatClient.say(sayChannel, `${botName} is online!`);
 
@@ -270,7 +208,12 @@ async function main()
 	let followerCache = new Set<String>();
 	
 	//Follower Event
-	webhooks.subscribeToFollowsToUser(userID, async (follow?: HelixFollow) =>
+	const webhooks = new WebHookListener(channelTwitchClient, new SimpleAdapter({
+		hostName: web.hostname,
+		listenerPort: 80
+	}));
+	
+	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>
 	{
 		if (!follow)
 			return;
@@ -284,49 +227,33 @@ async function main()
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
 	});
 
+	webhooks.applyMiddleware(app);
+
 	// Bits Event
-	await pubSubClient.onBits(userID, (message: PubSubBitsMessage) =>
+	await pubSubClient.onBits(channelId, (message: PubSubBitsMessage) =>
 	{
 		logger.info(`Bits: ${message.bits}`);
 		actions.fireEvent("bits", { number: message.bits, user: message.userName });
 	});
 
 	//Channel Points Event
-	await pubSubClient.onRedemption(userID, (message: PubSubRedemptionMessage) =>
+	await pubSubClient.onRedemption(channelId, (message: PubSubRedemptionMessage) =>
 	{
 		logger.info(`Redemption: ${message.rewardId} ${message.rewardName}`);
 		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
-	/////////////////////////
-	// Subscription Events
-	///////////////////////////
+	await pubSubClient.onSubscription(channelId, (message: PubSubSubscriptionMessage) => {
+		if (message.isGift)
+		{
+			actions.fireEvent('subscribe', { name: "gift", gifter: message.gifterDisplayName, user: message.userDisplayName });
+		}
+		else
+		{
+			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
+		}
+	});
 
-	chatClient.onSub((channel: any, user: any, subInfo: ChatSubInfo) =>
-	{
-		logger.info(`subscribed: ${user} prime: ${subInfo.isPrime}`);
-		actions.fireEvent("subscribe", { number: 0, user, prime: subInfo.isPrime });
-	});
-	chatClient.onSubExtend((channel: string, user: string, subInfo: ChatSubExtendInfo) => 
-	{
-		logger.info(`subextend: ${user}`);
-		actions.fireEvent("subscribe", { number: subInfo.months, user });
-	});
-	chatClient.onResub((channel: any, user: any, subInfo: ChatSubInfo) =>
-	{
-		logger.info(`resub: ${user}`);
-		actions.fireEvent("subscribe", { number: subInfo.months, user, prime: subInfo.isPrime });
-	});
-	/*chatClient.onCommunitySub((channel: string, user: string, subInfo: ChatCommunitySubInfo) => 
-	{
-		logger.info(`community sub ${user}`);
-		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.count });
-	});*/
-	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo) =>
-	{
-		logger.info(`subgift: ${user}`);
-		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });
-	});
 
 	//Raid Event
 	chatClient.onRaid((channel: string, user: string, raidInfo: ChatRaidInfo) =>
