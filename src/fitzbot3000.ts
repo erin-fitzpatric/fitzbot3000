@@ -3,30 +3,24 @@ import https from 'https';
 import http from 'http';
 import fs from 'fs';
 import ApiClient, { HelixFollow } from 'twitch';
-import { callTwitchApi, TwitchApiCallOptions, TwitchApiCallType } from 'twitch-api-call';
 import { SignOn } from './signOn';
-import ChatClient, { ChatCommunitySubInfo, ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
+import ChatClient, { ChatRaidInfo, ChatSubExtendInfo, ChatSubGiftInfo, ChatSubInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage } from 'twitch-pubsub-client';
 import { getTokenInfo, AccessToken, RefreshableAuthProvider, StaticAuthProvider } from 'twitch-auth';
 import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
-import { Lights } from "./lights";
-import { Sounds } from "./sounds";
 import { Games } from "./games";
-import { Effects } from './effects';
-import { Utils } from './utils';
 import websocket from 'websocket';
 import { ActionQueue } from "./actions";
 import PayPalIPN from './paypal';
 import bodyParser from 'body-parser';
 import logger from './logger';
 
-import { getCaretPosition } from './windows';
 
 // Load in JSON files
-const settings = JSON.parse(fs.readFileSync('./settings.json', 'UTF-8'));
-const web = JSON.parse(fs.readFileSync('./web.json', 'UTF-8'));
-const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
-const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'UTF-8'));
+const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
+const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
+const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
+const scopes = JSON.parse(fs.readFileSync('./scopes.json', 'utf-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -54,7 +48,7 @@ server.listen(80, () =>
 		return next();
 	})
 	// redirect from twitch
-	app.get("/auth/signin-twitch", async (req, res, next) =>
+	app.get("/auth/signin-twitch", async (req) =>
 	{
 		if (!req.query.code)
 		{
@@ -80,10 +74,10 @@ let wsServer = new websocket.server({
 wsServer.on('request', function (request)
 {
 	var connection = request.accept('echo-protocol', request.origin);
-	connection.on('message', function (message: websocket.IMessage)
+	connection.on('message', function ()
 	{
 	});
-	connection.on('close', function (reasonCode, description)
+	connection.on('close', function ()
 	{
 	});
 });
@@ -97,7 +91,7 @@ async function main()
 	if (!tokenData.access_token || !tokenData.refresh_token) 
 	{
 		//Wait here for signin to complete.
-		let authPromise = new Promise((resolve, reject) =>
+		let authPromise = new Promise((resolve) =>
 		{
 			authDataPromiseResolver = resolve;
 		});
@@ -152,8 +146,6 @@ async function main()
 	}
 
 	let userID = user.id; //Streamer ID
-	let botID = (await getTokenInfo(token.accessToken)).userId;
-	
 	await pubSubClient.registerUserListener(twitchClient, userID);
 
 	// Connect to Twitch
@@ -177,7 +169,6 @@ async function main()
 
 	let lossCount = 0;
 	let winCount = 0;
-	let tieCount = 0;
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
 	{
@@ -331,7 +322,7 @@ async function main()
 		logger.info(`community sub ${user}`);
 		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.count });
 	});*/
-	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo, msg: any) =>
+	chatClient.onSubGift((channel: any, user: any, subInfo: ChatSubGiftInfo) =>
 	{
 		logger.info(`subgift: ${user}`);
 		actions.fireEvent('subscribe', { name: "gift", gifter: subInfo.gifterDisplayName, user: subInfo.displayName });

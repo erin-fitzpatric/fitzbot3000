@@ -3,7 +3,7 @@ import qs from 'querystring'
 import  fs from 'fs';
 
 // Load in creds JSON file
-const creds = JSON.parse(fs.readFileSync('./creds.json', 'UTF-8'));
+const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
 
 export module SignOn {
     // NOT IN USE
@@ -44,10 +44,10 @@ export module SignOn {
     }
 
     export function getAuthData() {
-        return JSON.parse( fs.readFileSync('./tokens.json', 'UTF-8'));
+        return JSON.parse( fs.readFileSync('./tokens.json', 'utf-8'));
     }
 
     export function saveAuthData(authData: any) {
-        fs.writeFileSync('./tokens.json', JSON.stringify(authData, null, 4), 'UTF-8')
+        fs.writeFileSync('./tokens.json', JSON.stringify(authData, null, 4), 'utf-8')
     }
 }

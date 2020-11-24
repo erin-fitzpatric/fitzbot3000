@@ -4,7 +4,7 @@ import { Utils } from './utils';
 import  fs from 'fs';
 
 // Load in JSON
-const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'UTF-8'));
+const scenes = JSON.parse(fs.readFileSync('./scenes.json', 'utf-8'));
 
 export module Effects {
     // Effects
@@ -57,7 +57,7 @@ export module Effects {
 
 
     function getRandomSound(soundLibrary: string) {
-        const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'UTF-8'));
+        const sounds = JSON.parse(fs.readFileSync('./sounds.json', 'utf-8'));
         let random = Math.floor(Math.random() * (sounds[soundLibrary].length));
         return sounds[soundLibrary][random];
     }
