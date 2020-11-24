@@ -245,10 +245,12 @@ async function main()
 	await pubSubClient.onSubscription(channelId, (message: PubSubSubscriptionMessage) => {
 		if (message.isGift)
 		{
+			logger.info(`Gifted sub ${message.gifterDisplayName} -> ${message.userDisplayName}`);
 			actions.fireEvent('subscribe', { name: "gift", gifter: message.gifterDisplayName, user: message.userDisplayName });
 		}
 		else
 		{
+			logger.info(`Sub ${message.userDisplayName} : ${message.months}`);
 			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
 		}
 	});
