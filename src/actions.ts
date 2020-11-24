@@ -10,6 +10,7 @@ import say from 'say';
 import logger from './logger'
 import YAML from 'yaml';
 import { Mutex } from 'async-mutex';
+import youtube from './youtube';
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -318,12 +319,18 @@ export class ActionQueue
 			return;
 		}
 
+		if (actionArray.length == 0)
+		{
+			logger.error("Action array is empty!");
+			return;
+		}
+
 		this.convertOffsets(actionArray);
 
 		let release = await this.queueMutex.acquire();
 		for (let action of actionArray)
 		{
-			let fullAction = { ...this.globals, ...context, ...action, };
+			let fullAction = { latestYoutube: await youtube(),...this.globals, ...context, ...action, };
 			this.queue.push(fullAction);
 		}
 		release();
@@ -417,7 +424,7 @@ export class ActionQueue
 			try
 			{
 				this.wsServer.broadcast(JSON.stringify({
-					notification: Handlebars.compile(action.notification)(action)
+					notification: Handlebars.compile(action.notification, {noEscape: true})(action)
 				}));
 			}
 			catch (err)
@@ -429,7 +436,7 @@ export class ActionQueue
 		{
 			try
 			{
-				this.chatFunc(Handlebars.compile(action.say)(action));
+				this.chatFunc(Handlebars.compile(action.say, {noEscape: true})(action));
 			}
 			catch (err)
 			{
@@ -440,7 +447,7 @@ export class ActionQueue
 		{
 			try
 			{
-				say.speak(Handlebars.compile(action.speak)(action));
+				say.speak(Handlebars.compile(action.speak, {noEscape: true})(action));
 			}
 			catch (err)
 			{

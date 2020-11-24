@@ -14,7 +14,6 @@ import PayPalIPN from './paypal';
 import bodyParser from 'body-parser';
 import logger from './logger';
 
-
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));

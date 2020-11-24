@@ -62,10 +62,6 @@ export module Lights
 			.put(`${creds.hueUrl}/groups/${groupNumber}/action`, {
 				scene: sceneID,
 			})
-			.then(function (response: any)
-			{
-				console.log('success', response)
-			})
 			.catch(function (error: any)
 			{
 				console.log('fail', error)
