@@ -6,7 +6,7 @@ import ApiClient, { HelixFollow } from 'twitch';
 import { AuthManager } from './signOn';
 import ChatClient, { ChatRaidInfo } from 'twitch-chat-client';
 import PubSubClient, { PubSubBitsMessage, PubSubRedemptionMessage, PubSubSubscriptionMessage } from 'twitch-pubsub-client';
-import { SimpleAdapter, WebHookListener } from 'twitch-webhooks';
+import { SimpleAdapter, WebHookListener, ConnectionAdapter, SimpleAdapterConfig } from 'twitch-webhooks';
 import { Games } from "./games";
 import websocket from 'websocket';
 import { ActionQueue } from "./actions";
@@ -28,6 +28,40 @@ let app = express();
 
 let routes = express.Router();
 
+
+class ExpressWebhookAdapter extends ConnectionAdapter
+{
+	private readonly _hostName: string;
+	private readonly _basePath: string | undefined;
+
+	constructor(options: SimpleAdapterConfig, basePath: string | undefined)
+	{
+		super(options);
+		this._hostName = options.hostName;
+		this._basePath = basePath;
+	}
+
+	/** @protected */
+	get connectUsingSsl(): boolean
+	{
+		return this.listenUsingSsl;
+	}
+	/** @protected */
+	async getExternalPort(): Promise<number>
+	{
+		return this.getListenerPort();
+	}
+
+	/** @protected */
+	async getHostName(): Promise<string>
+	{
+		return this._hostName;
+	}
+
+	get pathPrefix(): string | undefined {
+		return this._basePath;
+	}
+}
 
 
 // Parse application/x-www-form-urlencoded
@@ -111,10 +145,10 @@ async function main()
 	let winCount = 0;
 
 	//Finish Setting up the web server
-	const webhooks = new WebHookListener(channelTwitchClient, new SimpleAdapter({
+	const webhooks = new WebHookListener(channelTwitchClient, new ExpressWebhookAdapter({
 		hostName: web.hostname,
 		listenerPort: web.port
-	}));
+	}, "/twitch-hooks"));
 
 	webhooks.applyMiddleware(app);
 
@@ -222,7 +256,7 @@ async function main()
 	logger.info("Started");
 
 	let followerCache = new Set<String>();
-	
+
 	//Follower Event
 	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>
 	{
@@ -233,7 +267,7 @@ async function main()
 			return;
 
 		followerCache.add(follow.userId);
-		
+
 		logger.info(`followed by ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
 	});
@@ -252,7 +286,8 @@ async function main()
 		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
-	await pubSubClient.onSubscription(channelId, (message: PubSubSubscriptionMessage) => {
+	await pubSubClient.onSubscription(channelId, (message: PubSubSubscriptionMessage) =>
+	{
 		if (message.isGift)
 		{
 			logger.info(`Gifted sub ${message.gifterDisplayName} -> ${message.userDisplayName}`);
@@ -261,7 +296,7 @@ async function main()
 		else
 		{
 			logger.info(`Sub ${message.userDisplayName} : ${message.months}`);
-			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
+			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime" })
 		}
 	});
 
