@@ -89,6 +89,20 @@ function handleOneOf(parent: any, files: Set<string>)
 	}
 }
 
+function isActionable(actionable: any) {
+	if (actionable instanceof Array)
+	{
+		return true;
+	}
+
+	if ("oneOf" in actionable)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 export class ActionQueue
 {
 	events: any;
@@ -220,7 +234,7 @@ export class ActionQueue
 			return false;
 		}
 
-		if (options.number)
+		if ("number" in options)
 		{
 			logger.info(`Fired ${name} : ${options.number}`)
 			//Handle a numberlike event action
@@ -233,24 +247,24 @@ export class ActionQueue
 				if (options.number > keyNumber)
 					selected = event[key];
 			}
-			if (selected)
+			if (selected && isActionable(selected))
 			{
 				this.pushToQueue(selected, options);
 				return true;
 			}
 		}
-		else if (options.name)
+		else if ("name" in options)
 		{
 			logger.info(`Fired ${name} : ${options.name}`)
 			//Handle a namelike event
 			let namedEvent = event[options.name];
-			if (namedEvent)
+			if (namedEvent && isActionable(namedEvent))
 			{
 				this.pushToQueue(namedEvent, options);
 				return true;
 			}
 		}
-		if (event instanceof Array)
+		if (isActionable(event))
 		{
 			logger.info(`Fired ${name}`)
 			this.pushToQueue(event, options);
@@ -259,7 +273,7 @@ export class ActionQueue
 
 		if (name != "chat")
 		{
-			logger.error(`Event failed to fire ${name}: ${options}`)
+			logger.error(`Event failed to fire ${name}`);
 		}
 
 		return false;
