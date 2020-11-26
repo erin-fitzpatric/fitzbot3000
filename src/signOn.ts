@@ -68,14 +68,7 @@ export class AuthManager
 	{
 		if (this.accessToken)
 		{
-			if (!this.accessToken.isExpired)
-			{
-				return this.accessToken;
-			}
-			else
-			{
-				this.accessToken = null;
-			}
+			return this.accessToken;
 		}
 
 		this.authPromise = new Promise<AccessTokenData>((resolve) =>
