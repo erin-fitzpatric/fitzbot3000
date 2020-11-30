@@ -244,7 +244,7 @@ export class ActionQueue
 				let keyNumber = Number(key);
 				if (isNaN(keyNumber))
 					continue;
-				if (options.number > keyNumber)
+				if (options.number >= keyNumber)
 					selected = event[key];
 			}
 			if (selected && isActionable(selected))
