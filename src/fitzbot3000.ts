@@ -80,6 +80,7 @@ async function main()
 	}
 
 	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	actions.allowAudio = "allowAudio" in settings ? settings.allowAudio : true;
 
 	let channelId = await (await channelTwitchClient.kraken.users.getMe()).id;
 	let botId = await (await botTwitchClient.kraken.users.getMe()).id;
@@ -260,8 +261,9 @@ async function main()
 		}
 		else
 		{
-			logger.info(`Sub ${message.userDisplayName} : ${message.months}`);
-			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
+			let months = message.months ? message.months : 0;
+			logger.info(`Sub ${message.userDisplayName} : ${months}`);
+			actions.fireEvent('subscribe', { number: months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
 		}
 	});
 

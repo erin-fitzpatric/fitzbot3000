@@ -89,6 +89,20 @@ function handleOneOf(parent: any, files: Set<string>)
 	}
 }
 
+function isActionable(actionable: any) {
+	if (actionable instanceof Array)
+	{
+		return true;
+	}
+
+	if ("oneOf" in actionable)
+	{
+		return true;
+	}
+
+	return false;
+}
+
 export class ActionQueue
 {
 	events: any;
@@ -101,6 +115,7 @@ export class ActionQueue
 	watchers: Array<fs.FSWatcher>;
 	globals: any;
 	queueMutex: Mutex;
+	allowAudio: Boolean;
 
 	reload()
 	{
@@ -208,6 +223,7 @@ export class ActionQueue
 		this.queue = [];
 		this.wsServer = wsServer;
 		this.currentAction = null;
+		this.allowAudio = true;
 	}
 
 	fireEvent(name: string, options: any)
@@ -220,7 +236,7 @@ export class ActionQueue
 			return false;
 		}
 
-		if (options.number)
+		if ("number" in options)
 		{
 			logger.info(`Fired ${name} : ${options.number}`)
 			//Handle a numberlike event action
@@ -230,27 +246,31 @@ export class ActionQueue
 				let keyNumber = Number(key);
 				if (isNaN(keyNumber))
 					continue;
-				if (options.number > keyNumber)
+				if (options.number >= keyNumber)
 					selected = event[key];
 			}
-			if (selected)
+			if (selected && isActionable(selected))
 			{
 				this.pushToQueue(selected, options);
 				return true;
 			}
+			else if (selected)
+			{
+				logger.error("Selected wasn't actionable.");
+			}
 		}
-		else if (options.name)
+		else if ("name" in options)
 		{
 			logger.info(`Fired ${name} : ${options.name}`)
 			//Handle a namelike event
 			let namedEvent = event[options.name];
-			if (namedEvent)
+			if (namedEvent && isActionable(namedEvent))
 			{
 				this.pushToQueue(namedEvent, options);
 				return true;
 			}
 		}
-		if (event instanceof Array)
+		if (isActionable(event))
 		{
 			logger.info(`Fired ${name}`)
 			this.pushToQueue(event, options);
@@ -259,7 +279,7 @@ export class ActionQueue
 
 		if (name != "chat")
 		{
-			logger.error(`Event failed to fire ${name}: ${options}`)
+			logger.error(`Event failed to fire ${name}`);
 		}
 
 		return false;
@@ -370,7 +390,7 @@ export class ActionQueue
 				logger.error(`Error Setting Scene: ${action.scene}`)
 			}
 		}
-		if (action.sound)
+		if (action.sound && this.allowAudio)
 		{
 			//Play the sound
 			try 
@@ -443,7 +463,7 @@ export class ActionQueue
 				logger.error(`Error chatting: ${action.say}`)
 			}
 		}
-		if (action.speak)
+		if (action.speak && this.allowAudio)
 		{
 			try
 			{
