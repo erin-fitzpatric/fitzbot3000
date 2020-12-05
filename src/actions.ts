@@ -443,8 +443,28 @@ export class ActionQueue
 		{
 			try
 			{
+				let notification : any = {};
+
+				if (action.notification.text)
+				{
+					notification.text = Handlebars.compile(action.notification.text, {noEscape: true})(action);
+				}
+				// Backwards compatablity 
+				if (action.notification instanceof String)
+				{
+					notification.text = Handlebars.compile(action.notification, {noEscape: true})(action);
+				}
+				if (action.notification.image)
+				{
+					notification.image = action.notification.image;
+				}
+				if (action.notification.color)
+				{
+					notification.color = action.notification.color;
+				}
+
 				this.wsServer.broadcast(JSON.stringify({
-					notification: Handlebars.compile(action.notification, {noEscape: true})(action)
+					notification
 				}));
 			}
 			catch (err)
