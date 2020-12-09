@@ -450,7 +450,7 @@ export class ActionQueue
 					notification.text = Handlebars.compile(action.notification.text, {noEscape: true})(action);
 				}
 				// Backwards compatablity 
-				if (action.notification instanceof String)
+				if (action.notification instanceof String || typeof(action.notification) === "string")
 				{
 					notification.text = Handlebars.compile(action.notification, {noEscape: true})(action);
 				}
