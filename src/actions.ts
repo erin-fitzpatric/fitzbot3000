@@ -11,6 +11,13 @@ import logger from './logger'
 import YAML from 'yaml';
 import { Mutex } from 'async-mutex';
 import youtube from './youtube';
+import { AoeStats } from './aoeStats';
+
+function toTitleCase(str: any) {
+    return str.replace(/\w\S*/g, function(txt: string){
+        return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    });
+}
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -116,6 +123,7 @@ export class ActionQueue
 	globals: any;
 	queueMutex: Mutex;
 	allowAudio: Boolean;
+	stats: string;
 
 	reload()
 	{
@@ -210,7 +218,7 @@ export class ActionQueue
 
 	}
 
-	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any)
+	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any, stats: string)
 	{
 		this.configFile = configFile;
 		this.globalsFile = globalsFile;
@@ -224,6 +232,8 @@ export class ActionQueue
 		this.wsServer = wsServer;
 		this.currentAction = null;
 		this.allowAudio = true;
+		
+		this.stats = stats;
 	}
 
 	fireEvent(name: string, options: any)
@@ -425,6 +435,27 @@ export class ActionQueue
 			catch (err)
 			{
 				logger.error(`Error running hue: ${action.hue}`)
+			}
+		}
+		// TODO
+		if ("stat" in action)
+		{
+			//Retrieve AoE stat
+			try
+			{
+				
+				let statName = toTitleCase(action.stat);
+				let unitStats = this.stats;
+
+				for (let key of Object.keys(unitStats[statName]) as any) { 
+					// TODO: If a single key is more than 509 chars, the message won't send :(. Example: Cow.
+					this.chatFunc(JSON.stringify(unitStats[statName][key])); 
+				}
+				console.log(unitStats[statName]);
+			}
+			catch (err)
+			{
+				logger.error(`Error retrieving AoE stat: ${action.stat}`)
 			}
 		}
 		if (action.websocket)
