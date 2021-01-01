@@ -11,6 +11,7 @@ import logger from './logger'
 import YAML from 'yaml';
 import { Mutex } from 'async-mutex';
 import youtube from './youtube';
+import { VariableTable } from './variables';
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -116,6 +117,7 @@ export class ActionQueue
 	globals: any;
 	queueMutex: Mutex;
 	allowAudio: Boolean;
+	variables: VariableTable;
 
 	reload()
 	{
@@ -210,7 +212,7 @@ export class ActionQueue
 
 	}
 
-	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any)
+	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any, variables: VariableTable)
 	{
 		this.configFile = configFile;
 		this.globalsFile = globalsFile;
@@ -224,6 +226,8 @@ export class ActionQueue
 		this.wsServer = wsServer;
 		this.currentAction = null;
 		this.allowAudio = true;
+
+		this.variables = variables;
 	}
 
 	fireEvent(name: string, options: any)
@@ -481,6 +485,21 @@ export class ActionQueue
 			catch (err)
 			{
 				logger.error(`Error chatting: ${action.say}`)
+			}
+		}
+		if ("variable" in action)
+		{
+			const name = action.variable.name;
+			if (name)
+			{
+				if ("set" in action.variable)
+				{
+					this.variables.set(name, action.variable.set);
+				}
+				else if ("offset" in action.variable)
+				{
+					this.variables.offset(name, action.variable.offset);
+				}
 			}
 		}
 		if (action.speak && this.allowAudio)

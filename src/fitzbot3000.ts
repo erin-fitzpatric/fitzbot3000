@@ -15,6 +15,7 @@ import bodyParser from 'body-parser';
 import logger from './logger';
 import { aoeScraper } from './webScraper';
 import { AoeStats } from './aoeStats';
+import { VariableTable } from './variables';
 
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
@@ -87,11 +88,25 @@ let wsServer = new websocket.server({
 	autoAcceptConnections: true
 });
 
-wsServer.on('request', function (request)
+let variables : VariableTable;
+
+wsServer.on('connect', function (connection)
 {
-	var connection = request.accept('echo-protocol', request.origin);
-	connection.on('message', function ()
+	connection.on('message', function (data)
 	{
+		if (data.utf8Data)
+		{
+			let msg = JSON.parse(data.utf8Data);
+			let result : { [index:string] : number } = {};
+			if ("variables" in msg)
+			{
+				for (let variable of msg.variables)
+				{
+					result[variable] = variables.get(variable);
+				}
+			}
+			connection.send(JSON.stringify({ variable: result}));
+		}
 	});
 	connection.on('close', function ()
 	{
@@ -116,7 +131,9 @@ async function main()
 		botTwitchClient = new ApiClient({ authProvider: botAuth.createAuthProvider() });
 	}
 
-	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	variables = new VariableTable(wsServer);
+
+	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg), variables);
 	actions.allowAudio = "allowAudio" in settings ? settings.allowAudio : true;
 
 	let channelId = await (await channelTwitchClient.kraken.users.getMe()).id;

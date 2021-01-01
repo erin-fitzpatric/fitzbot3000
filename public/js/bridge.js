@@ -27,12 +27,19 @@ class FitzBot
 				{
 					func(payload);
 				}
-				catch(err)
+				catch (err)
 				{
 					console.error(err);
 				}
 			}
 		}
+	}
+
+	requestVariables(...names)
+	{
+		this.socket.send(JSON.stringify({
+			variables: [...names]
+		}))
 	}
 
 	connect()
@@ -49,8 +56,10 @@ class FitzBot
 			}
 		})
 
-		this.socket.addEventListener('open', ()=> {
+		this.socket.addEventListener('open', () =>
+		{
 			console.log("Connected");
+			this.emit("connected", null);
 		});
 
 		this.socket.addEventListener('close', () =>
