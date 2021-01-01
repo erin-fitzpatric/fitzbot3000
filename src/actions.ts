@@ -115,6 +115,7 @@ export class ActionQueue
 	watchers: Array<fs.FSWatcher>;
 	globals: any;
 	queueMutex: Mutex;
+	allowAudio: Boolean;
 
 	reload()
 	{
@@ -222,6 +223,7 @@ export class ActionQueue
 		this.queue = [];
 		this.wsServer = wsServer;
 		this.currentAction = null;
+		this.allowAudio = true;
 	}
 
 	fireEvent(name: string, options: any)
@@ -251,6 +253,10 @@ export class ActionQueue
 			{
 				this.pushToQueue(selected, options);
 				return true;
+			}
+			else if (selected)
+			{
+				logger.error("Selected wasn't actionable.");
 			}
 		}
 		else if ("name" in options)
@@ -384,7 +390,7 @@ export class ActionQueue
 				logger.error(`Error Setting Scene: ${action.scene}`)
 			}
 		}
-		if (action.sound)
+		if (action.sound && this.allowAudio)
 		{
 			//Play the sound
 			try 
@@ -437,8 +443,28 @@ export class ActionQueue
 		{
 			try
 			{
+				let notification : any = {};
+
+				if (action.notification.text)
+				{
+					notification.text = Handlebars.compile(action.notification.text, {noEscape: true})(action);
+				}
+				// Backwards compatablity 
+				if (action.notification instanceof String || typeof(action.notification) === "string")
+				{
+					notification.text = Handlebars.compile(action.notification, {noEscape: true})(action);
+				}
+				if (action.notification.image)
+				{
+					notification.image = action.notification.image;
+				}
+				if (action.notification.color)
+				{
+					notification.color = action.notification.color;
+				}
+
 				this.wsServer.broadcast(JSON.stringify({
-					notification: Handlebars.compile(action.notification, {noEscape: true})(action)
+					notification
 				}));
 			}
 			catch (err)
@@ -457,7 +483,7 @@ export class ActionQueue
 				logger.error(`Error chatting: ${action.say}`)
 			}
 		}
-		if (action.speak)
+		if (action.speak && this.allowAudio)
 		{
 			try
 			{

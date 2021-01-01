@@ -13,11 +13,14 @@ import { ActionQueue } from "./actions";
 import PayPalIPN from './paypal';
 import bodyParser from 'body-parser';
 import logger from './logger';
+import { aoeScraper } from './webScraper';
+import { AoeStats } from './aoeStats';
 
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
+const stats = JSON.parse(fs.readFileSync('./aoe3.json', 'utf-8'));
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -114,6 +117,7 @@ async function main()
 	}
 
 	let actions = new ActionQueue('./actions.yaml', "./globals.json", wsServer, (msg: string) => chatClient.say(sayChannel, msg));
+	actions.allowAudio = "allowAudio" in settings ? settings.allowAudio : true;
 
 	let channelId = await (await channelTwitchClient.kraken.users.getMe()).id;
 	let botId = await (await botTwitchClient.kraken.users.getMe()).id;
@@ -179,6 +183,20 @@ async function main()
 			if (color.length > 0 && !isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
 			{
 				actions.pushToQueue([{ hue: hueNum }], { user });
+				return;
+			}
+		}
+		if (message.startsWith('!stat'))
+		{
+			const lookupName = message.slice(5).trim();
+
+			if (lookupName.length > 0 )
+			{
+				let arrMessages = AoeStats.getStat(lookupName, stats);
+				for (let msg of arrMessages)
+				{
+					chatClient.say(sayChannel, msg);
+				}
 				return;
 			}
 		}
@@ -295,8 +313,9 @@ async function main()
 		}
 		else
 		{
-			logger.info(`Sub ${message.userDisplayName} : ${message.months}`);
-			actions.fireEvent('subscribe', { number: message.months, user: message.userDisplayName, prime: message.subPlan == "Prime" })
+			let months = message.months ? message.months : 0;
+			logger.info(`Sub ${message.userDisplayName} : ${months}`);
+			actions.fireEvent('subscribe', { number: months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
 		}
 	});
 
