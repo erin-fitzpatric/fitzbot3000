@@ -20,7 +20,7 @@ import { AoeStats } from './aoeStats';
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
-const stats = JSON.parse(fs.readFileSync('./aoe3.json', 'utf-8'));
+let stats : any;
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -28,7 +28,6 @@ let authDataPromiseResolver: (para: any) => void;
 
 // start server
 let app = express();
-
 let routes = express.Router();
 
 
@@ -61,7 +60,8 @@ class ExpressWebhookAdapter extends ConnectionAdapter
 		return this._hostName;
 	}
 
-	get pathPrefix(): string | undefined {
+	get pathPrefix(): string | undefined
+	{
 		return this._basePath;
 	}
 }
@@ -186,18 +186,26 @@ async function main()
 				return;
 			}
 		}
-		if (message.startsWith('!stat'))
+		if (settings.aoeStats)
 		{
-			const lookupName = message.slice(5).trim();
-
-			if (lookupName.length > 0 )
+			if (stats == null)
 			{
-				let arrMessages = AoeStats.getStat(lookupName, stats);
-				for (let msg of arrMessages)
+				stats = JSON.parse(fs.readFileSync('./aoe3.json', 'utf-8'));
+			}
+
+			if (message.startsWith('!stat'))
+			{
+				const lookupName = message.slice(5).trim();
+
+				if (lookupName.length > 0)
 				{
-					chatClient.say(sayChannel, msg);
+					let arrMessages = AoeStats.getStat(lookupName, stats);
+					for (let msg of arrMessages)
+					{
+						chatClient.say(sayChannel, msg);
+					}
+					return;
 				}
-				return;
 			}
 		}
 
@@ -315,7 +323,7 @@ async function main()
 		{
 			let months = message.months ? message.months : 0;
 			logger.info(`Sub ${message.userDisplayName} : ${months}`);
-			actions.fireEvent('subscribe', { number: months, user: message.userDisplayName, prime: message.subPlan == "Prime"})
+			actions.fireEvent('subscribe', { number: months, user: message.userDisplayName, prime: message.subPlan == "Prime" })
 		}
 	});
 
