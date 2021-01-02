@@ -16,6 +16,7 @@ import logger from './logger';
 import { aoeScraper } from './webScraper';
 import { AoeStats } from './aoeStats';
 import { VariableTable } from './variables';
+import { TwitchPrivateMessage } from 'twitch-chat-client/lib/StandardCommands/TwitchPrivateMessage';
 
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
@@ -97,15 +98,10 @@ wsServer.on('connect', function (connection)
 		if (data.utf8Data)
 		{
 			let msg = JSON.parse(data.utf8Data);
-			let result: { [index: string]: number } = {};
-			if ("variables" in msg)
+			if (variables)
 			{
-				for (let variable of msg.variables)
-				{
-					result[variable] = variables.get(variable);
-				}
+				variables.handleWebsocketMessage(msg, connection);
 			}
-			connection.send(JSON.stringify({ variable: result }));
 		}
 	});
 	connection.on('close', function ()
@@ -184,7 +180,7 @@ async function main()
 	variables.set("followers", follows.total);
 
 
-	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
+	chatClient.onMessage(async (channel: string, user: string, message: string, msg: TwitchPrivateMessage) =>
 	{
 		message = message.toLowerCase();
 
@@ -208,6 +204,8 @@ async function main()
 				return;
 			}
 		}
+
+
 		if (settings.aoeStats)
 		{
 			if (stats == null)
@@ -231,19 +229,6 @@ async function main()
 			}
 		}
 
-		//This is a debug message.
-		if (message.startsWith('!huec'))
-		{
-			const color = message.slice(5).trim()
-			const hueNum = Number(color)
-
-			if (!isNaN(hueNum) && hueNum >= 0 && hueNum <= 1000)
-			{
-				actions.pushToQueue([{ light: { hue: hueNum } }], { user });
-				return;
-			}
-		}
-
 		if (settings.games)
 		{
 			if (settings.games.dice && message.startsWith("!dice")) 
@@ -256,44 +241,23 @@ async function main()
 				Games.playPingPong(chatClient, channel, user, botName);
 				return;
 			}
-			if (settings.games.score)
+		}
+
+		if (msg.userInfo.isMod || msg.userInfo.isBroadcaster)
+		{
+			if (actions.fireEvent('modchat', { name: message, user }))
 			{
-				switch (message)
-				{
-					case '!score': {
-						chatClient.say(channel, `The current score is ${winCount} - ${lossCount}`);
-						return;
-					}
-					case '!win': {
-						winCount++;
-						chatClient.say(channel, `@${creds.channel} wins :) :) :)!!! The current score is ${winCount} - ${lossCount}`);
-						return;
-					}
-					case '!unwin': {
-						winCount--;
-						chatClient.say(channel, `Someone messed up the score counter...win removed! Updated score: ${winCount} - ${lossCount}`);
-						return;
-					}
-					case '!loss': {
-						lossCount++;
-						chatClient.say(channel, `@${creds.channel} lost :( :( :(...the current score is ${winCount} - ${lossCount}`);
-						return;
-					}
-					case '!unloss': {
-						lossCount--;
-						chatClient.say(channel, `Someone messed up the score counter...loss removed! Updated score: ${winCount} - ${lossCount}`);
-						return;
-					}
-					case '!reset': {
-						winCount = 0;
-						lossCount = 0;
-						chatClient.say(channel, `The current score was reset by ${user}! The score is ${winCount} - ${lossCount}`);
-						return;
-					}
-				}
+				return;
 			}
 		}
 
+		if (msg.userInfo.isSubscriber)
+		{
+			if (actions.fireEvent('subchat', { name: message, user }))
+			{
+				return;
+			}
+		}
 
 		if (actions.fireEvent('chat', { name: message, user }))
 		{

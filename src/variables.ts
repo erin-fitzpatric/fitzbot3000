@@ -12,6 +12,19 @@ export class VariableTable
 		this.wsServer = wsServer;
 	}
 
+	handleWebsocketMessage(msg : any, connection : websocket.connection)
+	{
+		if ("variables" in msg)
+		{
+			let result: { [index: string]: number } = {};
+			for (let variable of msg.variables)
+			{
+				result[variable] = this.get(variable);
+			}
+			connection.send(JSON.stringify({ variable: result }));
+		}
+	}
+
 	ensure(name: string)
 	{
 		if (!(name in this.variables))
@@ -25,6 +38,11 @@ export class VariableTable
 		this.ensure(name);
 
 		return this.variables[name];
+	}
+
+	getAll()
+	{
+		return this.variables;
 	}
 
 	set(name: string, value: number)
@@ -42,7 +60,7 @@ export class VariableTable
 	offset(name: string, amount: number)
 	{
 		this.ensure(name);
-		
+
 		this.variables[name] += amount;
 		this.wsServer.broadcast(JSON.stringify({
 			variable: {
