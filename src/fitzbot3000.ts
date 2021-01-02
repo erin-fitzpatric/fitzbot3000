@@ -21,7 +21,7 @@ import { VariableTable } from './variables';
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
-let stats : any;
+let stats: any;
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -88,7 +88,7 @@ let wsServer = new websocket.server({
 	autoAcceptConnections: true
 });
 
-let variables : VariableTable;
+let variables: VariableTable;
 
 wsServer.on('connect', function (connection)
 {
@@ -97,7 +97,7 @@ wsServer.on('connect', function (connection)
 		if (data.utf8Data)
 		{
 			let msg = JSON.parse(data.utf8Data);
-			let result : { [index:string] : number } = {};
+			let result: { [index: string]: number } = {};
 			if ("variables" in msg)
 			{
 				for (let variable of msg.variables)
@@ -105,7 +105,7 @@ wsServer.on('connect', function (connection)
 					result[variable] = variables.get(variable);
 				}
 			}
-			connection.send(JSON.stringify({ variable: result}));
+			connection.send(JSON.stringify({ variable: result }));
 		}
 	});
 	connection.on('close', function ()
@@ -177,6 +177,11 @@ async function main()
 	routes.post('/ipn', paypal.getMiddleware());
 	//Use the router here so that the webhook middleware runs first before any of our other middleware.
 	app.use(routes);
+
+	//get current follower count.
+	variables.set('subscribers', await channelTwitchClient.kraken.channels.getChannelSubscriptionCount(channelId))
+	let follows = await channelTwitchClient.helix.users.getFollows({ followedUser: channelId });
+	variables.set("followers", follows.total);
 
 
 	chatClient.onMessage(async (channel: string, user: string, message: string, msg: any) =>
@@ -313,6 +318,9 @@ async function main()
 
 		logger.info(`followed by ${follow?.userDisplayName}`);
 		actions.fireEvent('follow', { user: follow?.userDisplayName });
+
+		let follows = await channelTwitchClient.helix.users.getFollows({ followedUser: channelId });
+		variables.set("followers", follows.total);
 	});
 
 	// Bits Event
@@ -329,7 +337,7 @@ async function main()
 		actions.fireEvent("redemption", { name: message.rewardName, msg: message.message, user: message.userName });
 	});
 
-	await pubSubClient.onSubscription(channelId, (message: PubSubSubscriptionMessage) =>
+	await pubSubClient.onSubscription(channelId, async (message: PubSubSubscriptionMessage) =>
 	{
 		if (message.isGift)
 		{
@@ -342,6 +350,8 @@ async function main()
 			logger.info(`Sub ${message.userDisplayName} : ${months}`);
 			actions.fireEvent('subscribe', { number: months, user: message.userDisplayName, prime: message.subPlan == "Prime" })
 		}
+
+		variables.set('subscribers', await channelTwitchClient.kraken.channels.getChannelSubscriptionCount(channelId))
 	});
 
 
