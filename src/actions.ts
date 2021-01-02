@@ -354,7 +354,7 @@ export class ActionQueue
 		let release = await this.queueMutex.acquire();
 		for (let action of actionArray)
 		{
-			let fullAction = { latestYoutube: await youtube(),...this.globals, ...context, ...action, };
+			let fullAction = { latestYoutube: await youtube(),...this.globals, ...context, ...action };
 			this.queue.push(fullAction);
 		}
 		release();
@@ -378,6 +378,9 @@ export class ActionQueue
 
 	async runAction(action: any)
 	{
+		//Put variables in here instead of at queue time incase they were edited in a prior action.
+		Object.assign(action, this.variables.getAll());
+
 		if (action.beforeDelay)
 		{
 			await Utils.sleep(action.beforeDelay * 1000);
