@@ -6,6 +6,7 @@
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/color-js/1.0.1/color.min.js"></script>
 	<link href="https://fonts.googleapis.com/css2?family=Anton&display=swap" rel="stylesheet">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.1.0/chroma.min.js" integrity="sha512-yocoLferfPbcwpCMr8v/B0AB4SWpJlouBwgE0D3ZHaiP1nuu5djZclFEIj9znuqghaZ3tdCMRrreLoM8km+jIQ==" crossorigin="anonymous"></script>
+	<script src="js/bridge.js"></script>
 	<style>
 		.notificationContainer {
 			display: flex;
@@ -21,7 +22,7 @@
 			border-width: 4px;
 			border-style: solid;
 			padding: 25px;
-			background: linear-gradient(180deg, hsl(234,70%,50%) 0%, hsl(234, 43%, 37%) 100%);
+			background: linear-gradient(180deg, hsl(234, 70%, 50%) 0%, hsl(234, 43%, 37%) 100%);
 			border-color: hsl(234, 38%, 18%);
 		}
 
@@ -40,101 +41,71 @@
 			height: 100%;
 		}
 
-		#notificationImage
-		{
+		#notificationImage {
 			width: 275px;
 			height: auto;
 			margin-right: 2em;
 		}
 
-		.notification_animator
-		{
+		.notification_animator {
 			display: flex;
 			flex-direction: row;
 		}
 
-		.hidden
-		{
+		.hidden {
 			display: none;
 		}
 	</style>
 	<script>
-
-		function connect()
-		{
-			var socket = new WebSocket("ws://127.0.0.1");
-
-			socket.addEventListener('message', function (event)
-			{
-				let msg = JSON.parse(event.data);
-
-				// Make follow notification dynamic match Hue
-				/*if ("hue" in msg)
-				{
-					let hueCss = Math.floor(msg.hue * 360);
-					$(".notification").css({
-						background: `linear-gradient(180deg, hsl(${hueCss},70%,50%) 0%, hsl(${hueCss}, 43%, 37%) 100%)`,
-						'border-color': `hsl(${hueCss}, 38%, 18%)`
-					});
-				}*/
-
-				if (msg.notification)
-				{
-					if (msg.notification.text)
-					{
-						$('#notificationText').text(msg.notification.text);
-					}
-					else
-					{
-						$('#notificationText').text("");
-					}
-
-					if (msg.notification.image)
-					{
-						let img = $('#notificationImage');
-						img.removeClass("hidden");
-						img.attr("src", msg.notification.image);
-					}
-					else
-					{
-						$('#notificationImage').addClass("hidden");
-					}
-
-					if (msg.notification.color)
-					{
-						let color = msg.notification.color;
-						$(".notification").css({
-							background: `linear-gradient(180deg, ${chroma(color).hex()} 0%, ${chroma(color).darken().hex()} 100%)`,
-							'border-color': `${chroma(color).darken(2).hex()}, 38%, 18%)`
-						});
-					}
-					else
-					{
-						$(".notification").css({
-							"background": "linear-gradient(180deg, hsl(234,70%,50%) 0%, hsl(234, 43%, 37%) 100%)",
-							"border-color": "hsl(234, 38%, 18%)"
-						});
-					}
-
-
-					$('.notification_animator').removeClass("animate__zoomOut").addClass('animate__jackInTheBox');
-					setTimeout(function ()
-					{
-						$('.notification_animator').removeClass('animate__jackInTheBox').addClass("animate__zoomOut");
-					}, 4500);
-				}
-			});
-
-			socket.addEventListener('close', function () {
-				setTimeout(function() {
-					connect();
-				}, 1000);
-			});
-		}
-
 		$(document).ready(function ()
 		{
-			connect();
+			fitzbot.connect();
+
+			fitzbot.on("notification", (notification) =>
+			{
+				if (notification.text)
+				{
+					$('#notificationText').text(notification.text);
+				}
+				else
+				{
+					$('#notificationText').text("");
+				}
+
+				if (notification.image)
+				{
+					let img = $('#notificationImage');
+					img.removeClass("hidden");
+					img.attr("src", notification.image);
+				}
+				else
+				{
+					$('#notificationImage').addClass("hidden");
+				}
+
+				if (notification.color)
+				{
+					let color = notification.color;
+					$(".notification").css({
+						background: `linear-gradient(180deg, ${chroma(color).hex()} 0%, ${chroma(color).darken().hex()} 100%)`,
+						'border-color': `${chroma(color).darken(2).hex()}, 38%, 18%)`
+					});
+				}
+				else
+				{
+					$(".notification").css({
+						"background": "linear-gradient(180deg, hsl(234,70%,50%) 0%, hsl(234, 43%, 37%) 100%)",
+						"border-color": "hsl(234, 38%, 18%)"
+					});
+				}
+
+
+				$('.notification_animator').removeClass("animate__zoomOut").addClass('animate__jackInTheBox');
+				setTimeout(function ()
+				{
+					$('.notification_animator').removeClass('animate__jackInTheBox').addClass("animate__zoomOut");
+				}, 4500);
+			})
 		});
 	</script>
 </head>
@@ -142,7 +113,7 @@
 <body>
 	<div class="notificationContainer">
 		<div class="notification_animator animate__animated animate__zoomOut">
-			<img id="notificationImage" class="hidden"/>
+			<img id="notificationImage" class="hidden" />
 			<div class="notification">
 				<div class="notificationContent">
 					<div>

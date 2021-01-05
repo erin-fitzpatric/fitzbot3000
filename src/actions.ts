@@ -11,6 +11,7 @@ import logger from './logger'
 import YAML from 'yaml';
 import { Mutex } from 'async-mutex';
 import youtube from './youtube';
+import { VariableTable } from './variables';
 
 function handleImport(file: string, files: Set<string>)
 {
@@ -116,6 +117,7 @@ export class ActionQueue
 	globals: any;
 	queueMutex: Mutex;
 	allowAudio: Boolean;
+	variables: VariableTable;
 
 	reload()
 	{
@@ -129,6 +131,10 @@ export class ActionQueue
 		for (let eventId in config)
 		{
 			let event = config[eventId];
+			if (!event)
+			{
+				continue;
+			}
 			if (event instanceof Array)
 			{
 				handleActionArray(event, files);
@@ -210,7 +216,7 @@ export class ActionQueue
 
 	}
 
-	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any)
+	constructor(configFile: string, globalsFile: string, wsServer: websocket.server, chatFunc: any, variables: VariableTable)
 	{
 		this.configFile = configFile;
 		this.globalsFile = globalsFile;
@@ -224,6 +230,8 @@ export class ActionQueue
 		this.wsServer = wsServer;
 		this.currentAction = null;
 		this.allowAudio = true;
+
+		this.variables = variables;
 	}
 
 	fireEvent(name: string, options: any)
@@ -350,7 +358,7 @@ export class ActionQueue
 		let release = await this.queueMutex.acquire();
 		for (let action of actionArray)
 		{
-			let fullAction = { latestYoutube: await youtube(),...this.globals, ...context, ...action, };
+			let fullAction = { latestYoutube: await youtube(),...this.globals, ...context, ...action };
 			this.queue.push(fullAction);
 		}
 		release();
@@ -374,6 +382,9 @@ export class ActionQueue
 
 	async runAction(action: any)
 	{
+		//Put variables in here instead of at queue time incase they were edited in a prior action.
+		Object.assign(action, this.variables.getAll());
+
 		if (action.beforeDelay)
 		{
 			await Utils.sleep(action.beforeDelay * 1000);
@@ -481,6 +492,21 @@ export class ActionQueue
 			catch (err)
 			{
 				logger.error(`Error chatting: ${action.say}`)
+			}
+		}
+		if ("variable" in action)
+		{
+			const name = action.variable.name;
+			if (name)
+			{
+				if ("set" in action.variable)
+				{
+					this.variables.set(name, action.variable.set);
+				}
+				else if ("offset" in action.variable)
+				{
+					this.variables.offset(name, action.variable.offset);
+				}
 			}
 		}
 		if (action.speak && this.allowAudio)
