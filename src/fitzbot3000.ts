@@ -64,6 +64,28 @@ wsServer.on('request', function (request)
 	});
 });
 
+
+async function getFollowersSet(channelTwitchClient : ApiClient, channelId : string) : Promise<Set<String>>
+{
+	let result = new Set<String>();
+
+	try
+	{
+		let users = await channelTwitchClient.helix.users.getFollowsPaginated({ followedUser: channelId}).getAll()
+
+		for (let user of users)
+		{
+			result.add(user.userDisplayName);
+		};
+	}
+	catch(err)
+	{
+		logger.error(err);
+	}
+
+	return result;
+}
+
 async function main()
 {
 	let channelAuth = new AuthManager('channel');
@@ -239,7 +261,7 @@ async function main()
 
 	logger.info("Started");
 
-	let followerCache = new Set<String>();
+	let followerCache = await getFollowersSet(channelTwitchClient, channelId);
 	
 	//Follower Event
 	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>
