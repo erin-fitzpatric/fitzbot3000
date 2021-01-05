@@ -110,20 +110,20 @@ wsServer.on('connect', function (connection)
 });
 
 
-async function getFollowersSet(channelTwitchClient : ApiClient, channelId : string) : Promise<Set<String>>
+async function getFollowersSet(channelTwitchClient: ApiClient, channelId: string): Promise<Set<String>>
 {
 	let result = new Set<String>();
 
 	try
 	{
-		let users = await channelTwitchClient.helix.users.getFollowsPaginated({ followedUser: channelId}).getAll()
+		let users = await channelTwitchClient.helix.users.getFollowsPaginated({ followedUser: channelId }).getAll()
 
 		for (let user of users)
 		{
 			result.add(user.userDisplayName);
 		};
 	}
-	catch(err)
+	catch (err)
 	{
 		logger.error(err);
 	}
@@ -289,13 +289,12 @@ async function main()
 
 	logger.info("Started");
 
-<<<<<<< HEAD
 	let followerCache = new Set<String>();
+	if (settings.primeFollowerCache)
+	{
+		followerCache = await getFollowersSet(channelTwitchClient, channelId);
+	}
 
-=======
-	let followerCache = await getFollowersSet(channelTwitchClient, channelId);
-	
->>>>>>> upstream/master
 	//Follower Event
 	await webhooks.subscribeToFollowsToUser(channelId, async (follow?: HelixFollow) =>
 	{
