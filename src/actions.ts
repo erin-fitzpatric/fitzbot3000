@@ -131,6 +131,10 @@ export class ActionQueue
 		for (let eventId in config)
 		{
 			let event = config[eventId];
+			if (!event)
+			{
+				continue;
+			}
 			if (event instanceof Array)
 			{
 				handleActionArray(event, files);
