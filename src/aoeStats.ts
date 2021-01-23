@@ -40,4 +40,21 @@ export module AoeStats {
             return [];
         }
     }
+
+    export function getPlayerStat(playerName: string, stats: any): Array<string> {
+        try {
+            let result = []
+
+            for (let sectionKey in stats[playerName]) {
+                if (sectionBlacklist.includes(sectionKey))
+                    continue;
+                let formattedString = ''
+                formattedString += `${sectionKey} | ${stats[playerName][sectionKey]}`;
+                result.push(formattedString);
+            }
+            return result;
+        } catch (err) {
+            return [];
+        }
+    }
 }

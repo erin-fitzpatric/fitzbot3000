@@ -23,6 +23,7 @@ const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
 let stats: any;
+let playerStats: any;
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -242,6 +243,27 @@ async function main()
 				if (lookupName.length > 0)
 				{
 					let arrMessages = AoeStats.getStat(lookupName, stats);
+					for (let msg of arrMessages)
+					{
+						chatClient.say(sayChannel, msg);
+					}
+					return;
+				}
+			}
+
+			// Player Stats
+			if (playerStats == null)
+			{
+				playerStats = JSON.parse(fs.readFileSync('./aoe3Players.json', 'utf-8'));
+			}
+
+			if (message.startsWith('!player'))
+			{
+				const playerName = message.slice(7).trim();
+
+				if (playerName.length > 0)
+				{
+					let arrMessages = AoeStats.getPlayerStat(playerName, playerStats);
 					for (let msg of arrMessages)
 					{
 						chatClient.say(sayChannel, msg);
