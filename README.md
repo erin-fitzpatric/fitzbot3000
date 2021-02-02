@@ -2,10 +2,13 @@
 Twitch chat bot for playing sounds, controlling Philips Hue lights, and interacting with viewers.
 
 ## Installation
+Install Node:
+https://nodejs.org/en/
 
 From the root directory:
 ```bash
 npm install
+npm install -g typescript
 ```
 
 ## Setup
