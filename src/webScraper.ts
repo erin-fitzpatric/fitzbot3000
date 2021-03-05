@@ -33,10 +33,22 @@ interface SectionData {
     [key: string]: string
 }
 
+function shouldUpdate()
+{
+	if (!fs.existsSync("aoe3.json"))
+	{
+		return true;
+	}
+
+	let msSinceUpdate = (Math.abs(new Date().getTime() - lastUpdatedDate('aoe3.json')));
+	if (msSinceUpdate > 6.048e+8)
+	{
+		return true;
+	}
+}
+
 export async function aoeScraper() {
-    // Check file date...only scrape once a week.
-    let msSinceUpdate = (Math.abs(new Date().getTime() - lastUpdatedDate('aoe3.json')));
-    if (msSinceUpdate > 6.048e+8) {
+    if (shouldUpdate()) {
         const response = await got(vgmUrl, {
             headers: {
                 'user-agent':

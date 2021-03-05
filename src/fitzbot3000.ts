@@ -17,13 +17,18 @@ import { aoeScraper } from './webScraper';
 import { AoeStats } from './aoeStats';
 import { VariableTable } from './variables';
 import { TwitchPrivateMessage } from 'twitch-chat-client/lib/StandardCommands/TwitchPrivateMessage';
+import aoePlayerStats from './aoePlayerStats';
+
 
 // Load in JSON files
 const settings = JSON.parse(fs.readFileSync('./settings.json', 'utf-8'));
 const web = JSON.parse(fs.readFileSync('./web.json', 'utf-8'));
 const creds = JSON.parse(fs.readFileSync('./creds.json', 'utf-8'));
+// const officialPlayerStats = JSON.parse(fs.readFileSync('./officialPlayerStats.json', 'utf-8'));
+
 let stats: any;
 let playerStats: any;
+let officialPlayerStats: any;
 
 https.globalAgent.options.rejectUnauthorized = false;
 
@@ -134,6 +139,12 @@ async function getFollowersSet(channelTwitchClient: ApiClient, channelId: string
 
 async function main()
 {
+	if (settings.aoeStats)
+	{
+		await aoeScraper()
+		await aoePlayerStats()
+	}
+
 	let channelAuth = new AuthManager('channel');
 	channelAuth.installMiddleware(app);
 	await channelAuth.doAuth();
@@ -207,6 +218,11 @@ async function main()
 	{
 		message = message.toLowerCase();
 
+		// Fitzbot Blacklist
+		// if (user === "synk_tempaaah" && (message === "!red" || message.startsWith("!hue"))) {
+		// 	return;
+		// }
+
 		let emoteOffsets = Array.from(msg.emoteOffsets, ([name, value]) => ({ name, value }));
 
 		for (let { name, value } of emoteOffsets)
@@ -228,6 +244,18 @@ async function main()
 			}
 		}
 
+		// TODO:
+		// if (message.startsWith('!rookiestat')) {
+		// 	const update = message.slice(11).trim();
+		// 	if (update ==="win") {
+		// 		//add point for fitz
+		// 		console.log("Fitz wins!")
+		// 	} else {
+		// 		//add point for rookie
+		// 		console.log("Rookie wins!")
+		// 	}
+		// 	console.log(update);
+		// }
 
 		if (settings.aoeStats)
 		{
@@ -251,23 +279,20 @@ async function main()
 				}
 			}
 
-			// Player Stats
-			if (playerStats == null)
-			{
-				playerStats = JSON.parse(fs.readFileSync('./aoe3Players.json', 'utf-8'));
-			}
 
-			if (message.startsWith('!player'))
-			{
-				const playerName = message.slice(7).trim();
-
-				if (playerName.length > 0)
+			if (message.startsWith('!rank'))
+			{	
+				// cache and set timeout
+				if (officialPlayerStats == null)
 				{
-					let arrMessages = AoeStats.getPlayerStat(playerName, playerStats);
-					for (let msg of arrMessages)
-					{
-						chatClient.say(sayChannel, msg);
-					}
+					officialPlayerStats = JSON.parse(fs.readFileSync('./officialPlayerStats.json', 'utf-8'));
+				}
+				const lookupName = message.slice(5).trim();
+
+				if (lookupName.length > 0)
+				{
+					let msg = AoeStats.getOfficialPlayerStat(lookupName, officialPlayerStats);
+					chatClient.say(sayChannel, msg);
 					return;
 				}
 			}

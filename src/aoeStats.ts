@@ -57,4 +57,17 @@ export module AoeStats {
             return [];
         }
     }
+
+    export function getOfficialPlayerStat(playerName: string, stats: any): string {
+        try {
+
+            let result = (stats.find((_: any) => _.userName.toLowerCase() == playerName))
+            if (result) {
+                return JSON.stringify(result);
+            } 
+            return `${playerName} is not in the top 200, or you suck at spelling.`;
+        } catch (err) {
+            return "No player found...learn to spell good.";
+        }
+    }
 }
