@@ -37,4 +37,4 @@ Pull requests are welcome!
 ## Support
 Reach out to me on:
 * [Twitch](https://www.twitch.tv/fitzbro)
-* [Twitter](https://twitter.com/Mr_Fitzpatric)
+* [Twitter](https://twitter.com/fitzbro_gaming)
